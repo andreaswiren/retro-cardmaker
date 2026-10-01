@@ -1,0 +1,15 @@
+[package]
+name = "retro-cardmaker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+eframe = "0.36.2"
+regex = "1.13.1"
+reqwest = { version = "0.13.5", features = ["blocking"] }
+rfd = "0.17.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sysinfo = "0.39.6"
+walkdir = "2.5.0"

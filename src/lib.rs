@@ -1,0 +1,8 @@
+pub mod art_scraper;
+pub mod cli;
+pub mod drives;
+pub mod favorites;
+pub mod gui;
+pub mod installer;
+pub mod launcher_profiles;
+pub mod platforms;
