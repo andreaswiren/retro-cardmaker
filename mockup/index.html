@@ -3,39 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Retro CardMaker - Professional UX Prototype & Interactive Mockup</title>
+  <title>Retro CardMaker - Professional Compact UX Mockup & Curated Favorites Editor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-dark: #0a0d14;
-      --bg-card: #121824;
-      --bg-card-hover: #172030;
-      --bg-card-active: #1d283c;
-      --bg-modal: #101622;
-      --border-subtle: #1e293b;
-      --border-bright: #334155;
-      --cyan: #00f0ff;
-      --cyan-dim: rgba(0, 240, 255, 0.15);
+      --bg-dark: #090c10;
+      --bg-card: #0f141c;
+      --bg-card-hover: #141b26;
+      --bg-card-active: #192230;
+      --bg-modal: #0d1219;
+      --border-subtle: #1c2432;
+      --border-bright: #2d3a4e;
+      --cyan: #00e5ff;
+      --cyan-dim: rgba(0, 229, 255, 0.12);
       --purple: #8b5cf6;
-      --purple-dim: rgba(139, 92, 246, 0.15);
+      --purple-dim: rgba(139, 92, 246, 0.12);
       --green: #10b981;
-      --green-dim: rgba(16, 185, 129, 0.15);
+      --green-dim: rgba(16, 185, 129, 0.12);
       --amber: #f59e0b;
-      --amber-dim: rgba(245, 158, 11, 0.15);
+      --amber-dim: rgba(245, 158, 11, 0.12);
       --red: #ef4444;
-      --red-dim: rgba(239, 68, 68, 0.15);
-      --text-main: #f1f5f9;
+      --red-dim: rgba(239, 68, 68, 0.12);
+      --text-main: #e2e8f0;
       --text-muted: #94a3b8;
       --text-faint: #64748b;
-      --radius-sm: 8px;
-      --radius-md: 12px;
-      --radius-lg: 16px;
+      --radius-sm: 6px;
+      --radius-md: 9px;
+      --radius-lg: 12px;
       --radius-full: 9999px;
-      --shadow-glow-cyan: 0 0 20px rgba(0, 240, 255, 0.25);
-      --shadow-glow-purple: 0 0 20px rgba(139, 92, 246, 0.25);
-      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     * {
@@ -48,23 +46,24 @@
       background-color: var(--bg-dark);
       color: var(--text-main);
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      line-height: 1.5;
+      font-size: 13px; /* Compact desktop density */
+      line-height: 1.45;
       min-height: 100vh;
       overflow-x: hidden;
       background-image: 
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 240, 255, 0.08), transparent),
-        radial-gradient(ellipse 60% 40% at 85% 60%, rgba(139, 92, 246, 0.06), transparent);
+        radial-gradient(ellipse 70% 40% at 50% -10%, rgba(0, 229, 255, 0.05), transparent),
+        radial-gradient(ellipse 50% 30% at 85% 50%, rgba(139, 92, 246, 0.04), transparent);
     }
 
     /* Top Navigation */
     header {
       border-bottom: 1px solid var(--border-subtle);
-      background: rgba(10, 13, 20, 0.85);
-      backdrop-filter: blur(12px);
+      background: rgba(9, 12, 16, 0.88);
+      backdrop-filter: blur(10px);
       position: sticky;
       top: 0;
       z-index: 50;
-      padding: 0.85rem 2rem;
+      padding: 0.6rem 1.5rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -73,48 +72,44 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.85rem;
+      gap: 0.65rem;
     }
 
     .brand-icon {
-      width: 36px;
-      height: 36px;
+      width: 28px;
+      height: 28px;
       background: linear-gradient(135deg, var(--cyan), var(--purple));
       border-radius: var(--radius-sm);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.2rem;
-      box-shadow: var(--shadow-glow-cyan);
+      font-size: 0.95rem;
     }
 
     .brand-title {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.25rem;
+      font-size: 1.05rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
-      background: linear-gradient(to right, #fff, #94a3b8);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.01em;
+      color: #fff;
     }
 
     .brand-tag {
-      font-size: 0.7rem;
-      padding: 0.15rem 0.5rem;
+      font-size: 0.65rem;
+      padding: 0.1rem 0.45rem;
       border-radius: var(--radius-full);
       background: var(--cyan-dim);
       color: var(--cyan);
-      border: 1px solid rgba(0, 240, 255, 0.3);
+      border: 1px solid rgba(0, 229, 255, 0.25);
       font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .nav-tabs {
       display: flex;
-      gap: 0.5rem;
-      background: rgba(18, 24, 36, 0.6);
-      padding: 0.3rem;
+      gap: 0.35rem;
+      background: rgba(15, 20, 28, 0.7);
+      padding: 0.25rem;
       border-radius: var(--radius-md);
       border: 1px solid var(--border-subtle);
     }
@@ -123,113 +118,94 @@
       background: transparent;
       border: none;
       color: var(--text-muted);
-      padding: 0.45rem 1rem;
+      padding: 0.35rem 0.85rem;
       border-radius: var(--radius-sm);
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition);
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
     }
 
     .nav-tab-btn:hover {
       color: var(--text-main);
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .nav-tab-btn.active {
       color: #fff;
-      background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(139, 92, 246, 0.2));
-      border: 1px solid rgba(0, 240, 255, 0.4);
-      box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.18), rgba(139, 92, 246, 0.18));
+      border: 1px solid rgba(0, 229, 255, 0.35);
     }
 
     .github-btn {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      padding: 0.45rem 0.9rem;
+      padding: 0.35rem 0.75rem;
       border-radius: var(--radius-sm);
       text-decoration: none;
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       font-weight: 500;
       transition: var(--transition);
     }
 
     .github-btn:hover {
       border-color: var(--cyan);
-      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
     }
 
     /* Main Container */
     main {
-      max-width: 1380px;
+      max-width: 1300px;
       margin: 0 auto;
-      padding: 2rem 1.5rem 4rem;
+      padding: 1.25rem 1.25rem 3rem;
     }
 
-    /* Section Headers */
-    .hero-banner {
-      background: linear-gradient(180deg, rgba(18, 24, 36, 0.7), rgba(18, 24, 36, 0.4));
+    /* Compact Context Bar */
+    .context-bar {
+      background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 2rem;
-      margin-bottom: 2rem;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hero-banner::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 300px;
-      height: 100%;
-      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.12), transparent 70%);
-      pointer-events: none;
-    }
-
-    .hero-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.85rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .hero-desc {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      max-width: 800px;
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.25rem;
       margin-bottom: 1.25rem;
-    }
-
-    .data-pill-row {
       display: flex;
+      justify-content: space-between;
+      align-items: center;
       flex-wrap: wrap;
       gap: 0.75rem;
     }
 
-    .data-pill {
-      display: inline-flex;
+    .context-left h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
       align-items: center;
+      gap: 0.5rem;
+    }
+
+    .context-left p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .data-pill-row {
+      display: flex;
       gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .data-pill {
+      font-size: 0.7rem;
       background: rgba(0, 0, 0, 0.35);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-full);
-      padding: 0.3rem 0.85rem;
-      font-size: 0.78rem;
+      padding: 0.2rem 0.65rem;
       color: var(--text-muted);
     }
 
@@ -237,25 +213,24 @@
       color: var(--cyan);
     }
 
-    /* Wizard Step Bar */
+    /* Wizard Step Bar - Compact */
     .wizard-steps {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 0.75rem;
-      margin-bottom: 2rem;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .wizard-step {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1rem;
+      padding: 0.65rem 0.85rem;
       cursor: pointer;
       transition: var(--transition);
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
-      position: relative;
+      gap: 0.15rem;
     }
 
     .wizard-step:hover {
@@ -265,16 +240,12 @@
 
     .wizard-step.active {
       border-color: var(--cyan);
-      background: linear-gradient(135deg, rgba(18, 24, 36, 0.95), rgba(0, 240, 255, 0.05));
-      box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
-    }
-
-    .wizard-step.completed {
-      border-color: var(--green);
+      background: linear-gradient(135deg, rgba(15, 20, 28, 0.95), rgba(0, 229, 255, 0.04));
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.12);
     }
 
     .step-number {
-      font-size: 0.75rem;
+      font-size: 0.65rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -285,26 +256,21 @@
       color: var(--cyan);
     }
 
-    .wizard-step.completed .step-number {
-      color: var(--green);
-    }
-
     .step-title {
-      font-size: 0.95rem;
+      font-size: 0.82rem;
       font-weight: 600;
       color: var(--text-main);
     }
 
     .step-desc {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--text-muted);
-      line-height: 1.3;
     }
 
-    /* Step Panels */
+    /* Panels */
     .step-panel {
       display: none;
-      animation: fadeIn 0.3s ease-out;
+      animation: fadeIn 0.25s ease-out;
     }
 
     .step-panel.active {
@@ -312,68 +278,68 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Grid Layouts */
+    /* Grids & Cards */
     .two-col-grid {
       display: grid;
       grid-template-columns: 1.15fr 0.85fr;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
 
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: 1.15rem;
+      margin-bottom: 1.15rem;
     }
 
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1.25rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 0.85rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }
 
     .card-title {
-      font-size: 1.1rem;
+      font-size: 0.9rem;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
 
     .badge {
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       font-weight: 600;
-      padding: 0.2rem 0.6rem;
+      padding: 0.15rem 0.5rem;
       border-radius: var(--radius-full);
       text-transform: uppercase;
     }
 
-    .badge-cyan { background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(0, 240, 255, 0.3); }
-    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(139, 92, 246, 0.3); }
-    .badge-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
-    .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-cyan { background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(0, 229, 255, 0.25); }
+    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(139, 92, 246, 0.25); }
+    .badge-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.25); }
+    .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.25); }
 
-    /* Drive Item Component */
+    /* Drive Item */
     .drive-selector-box {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     .drive-option {
       background: rgba(0, 0, 0, 0.25);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1rem;
+      padding: 0.75rem 0.85rem;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
@@ -383,70 +349,61 @@
 
     .drive-option:hover {
       border-color: var(--border-bright);
-      background: rgba(255, 255, 255, 0.02);
     }
 
     .drive-option.selected {
       border-color: var(--cyan);
-      background: rgba(0, 240, 255, 0.04);
-      box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
+      background: rgba(0, 229, 255, 0.03);
     }
 
     .drive-option.protected {
-      opacity: 0.7;
-      border-color: rgba(239, 68, 68, 0.4);
-      background: rgba(239, 68, 68, 0.03);
+      opacity: 0.75;
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.02);
     }
 
     .drive-info {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     .drive-icon {
-      font-size: 1.75rem;
+      font-size: 1.25rem;
     }
 
     .drive-letter {
-      font-size: 1.15rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: #fff;
     }
 
     .drive-meta {
-      font-size: 0.8rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
     }
 
-    .drive-status-badge {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 0.25rem;
-    }
-
-    /* Format Options */
+    /* Format Switch */
     .format-card {
-      background: rgba(0, 0, 0, 0.25);
+      background: rgba(0, 0, 0, 0.2);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1.25rem;
-      margin-top: 1rem;
+      padding: 0.9rem;
+      margin-top: 0.75rem;
     }
 
     .toggle-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     .switch {
       position: relative;
       display: inline-block;
-      width: 44px;
-      height: 24px;
+      width: 36px;
+      height: 20px;
     }
 
     .switch input { opacity: 0; width: 0; height: 0; }
@@ -456,59 +413,57 @@
       cursor: pointer;
       top: 0; left: 0; right: 0; bottom: 0;
       background-color: var(--border-bright);
-      transition: .3s;
+      transition: .25s;
       border-radius: var(--radius-full);
     }
 
     .slider:before {
       position: absolute;
       content: "";
-      height: 18px;
-      width: 18px;
+      height: 14px;
+      width: 14px;
       left: 3px;
       bottom: 3px;
       background-color: white;
-      transition: .3s;
+      transition: .25s;
       border-radius: 50%;
     }
 
     input:checked + .slider { background-color: var(--cyan); }
-    input:checked + .slider:before { transform: translateX(20px); }
+    input:checked + .slider:before { transform: translateX(16px); }
 
     .fs-choice-group {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-      margin-top: 0.75rem;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
     }
 
     .fs-box {
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-sm);
-      padding: 0.75rem;
+      padding: 0.55rem 0.75rem;
       cursor: pointer;
       transition: var(--transition);
       background: rgba(0,0,0,0.2);
     }
 
-    .fs-box:hover { border-color: var(--border-bright); }
     .fs-box.selected { border-color: var(--cyan); background: var(--cyan-dim); }
-
-    .fs-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 0.2rem; }
-    .fs-desc { font-size: 0.72rem; color: var(--text-muted); }
+    .fs-title { font-weight: 700; font-size: 0.78rem; margin-bottom: 0.15rem; }
+    .fs-desc { font-size: 0.68rem; color: var(--text-muted); line-height: 1.3; }
 
     /* Device Profiles Grid */
     .profile-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 0.75rem;
     }
 
     .profile-card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1.25rem;
+      padding: 0.85rem;
       cursor: pointer;
       transition: var(--transition);
       display: flex;
@@ -518,68 +473,67 @@
 
     .profile-card:hover {
       border-color: var(--border-bright);
-      transform: translateY(-2px);
       background: var(--bg-card-hover);
     }
 
     .profile-card.selected {
       border-color: var(--purple);
-      background: linear-gradient(135deg, var(--bg-card), rgba(139, 92, 246, 0.08));
-      box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+      background: linear-gradient(135deg, var(--bg-card), rgba(139, 92, 246, 0.06));
     }
 
     .profile-header {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.65rem;
+      gap: 0.6rem;
+      margin-bottom: 0.4rem;
     }
 
     .profile-icon {
-      font-size: 1.5rem;
-      width: 40px;
-      height: 40px;
+      font-size: 1.15rem;
+      width: 32px;
+      height: 32px;
       border-radius: var(--radius-sm);
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.04);
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
     .profile-name {
-      font-size: 1rem;
+      font-size: 0.85rem;
       font-weight: 700;
     }
 
     .profile-desc {
-      font-size: 0.8rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
-      margin-bottom: 0.85rem;
-      line-height: 1.4;
+      margin-bottom: 0.5rem;
+      line-height: 1.35;
     }
 
     .profile-pattern {
       font-family: 'Fira Code', monospace;
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       background: rgba(0, 0, 0, 0.35);
-      padding: 0.4rem 0.6rem;
+      padding: 0.35rem 0.5rem;
       border-radius: 4px;
       color: var(--cyan);
       border-left: 2px solid var(--cyan);
+      word-break: break-all;
     }
 
     /* Platforms List */
     .platform-list {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     .platform-row {
       background: rgba(0, 0, 0, 0.25);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1rem 1.25rem;
+      padding: 0.75rem 1rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -588,51 +542,50 @@
 
     .platform-row:hover {
       border-color: var(--border-bright);
-      background: rgba(255, 255, 255, 0.015);
     }
 
     .platform-left {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     .custom-checkbox {
-      width: 20px;
-      height: 20px;
+      width: 16px;
+      height: 16px;
       accent-color: var(--cyan);
       cursor: pointer;
     }
 
     .platform-details h4 {
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       font-weight: 600;
     }
 
     .platform-details p {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--text-muted);
     }
 
     .platform-actions {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
 
     .btn {
       background: var(--bg-card-hover);
       border: 1px solid var(--border-subtle);
       color: var(--text-main);
-      padding: 0.45rem 0.9rem;
+      padding: 0.35rem 0.7rem;
       border-radius: var(--radius-sm);
-      font-size: 0.82rem;
+      font-size: 0.76rem;
       font-weight: 600;
       cursor: pointer;
       transition: var(--transition);
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
     }
 
     .btn:hover {
@@ -642,14 +595,8 @@
 
     .btn-primary {
       background: linear-gradient(135deg, #0ea5e9, #2563eb);
-      border-color: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.15);
       color: #fff;
-      box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
-    }
-
-    .btn-primary:hover {
-      box-shadow: 0 0 20px rgba(14, 165, 233, 0.5);
-      transform: translateY(-1px);
     }
 
     .btn-cyan {
@@ -659,9 +606,7 @@
       font-weight: 700;
     }
 
-    .btn-cyan:hover {
-      box-shadow: 0 0 15px var(--cyan);
-    }
+    .btn-cyan:hover { box-shadow: 0 0 10px rgba(0, 229, 255, 0.4); }
 
     .btn-green {
       background: var(--green);
@@ -670,9 +615,7 @@
       font-weight: 700;
     }
 
-    .btn-green:hover {
-      box-shadow: 0 0 15px var(--green);
-    }
+    .btn-green:hover { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
 
     .segmented-control {
       display: inline-flex;
@@ -686,9 +629,9 @@
       background: transparent;
       border: none;
       color: var(--text-muted);
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: 600;
-      padding: 0.25rem 0.65rem;
+      padding: 0.2rem 0.55rem;
       border-radius: 4px;
       cursor: pointer;
       transition: var(--transition);
@@ -699,9 +642,9 @@
       color: #fff;
     }
 
-    /* Live Terminal Console */
+    /* Terminal Console */
     .terminal-window {
-      background: #06090e;
+      background: #05080c;
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       overflow: hidden;
@@ -709,36 +652,31 @@
     }
 
     .terminal-header {
-      background: #0e131d;
-      padding: 0.5rem 1rem;
+      background: #0b0f17;
+      padding: 0.4rem 0.85rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
       border-bottom: 1px solid var(--border-subtle);
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--text-muted);
     }
 
-    .terminal-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-    }
-
+    .terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
     .dot-red { background: #ef4444; }
     .dot-yellow { background: #f59e0b; }
     .dot-green { background: #10b981; }
 
     .terminal-body {
-      padding: 1rem;
-      height: 240px;
+      padding: 0.75rem 0.85rem;
+      height: 200px;
       overflow-y: auto;
-      font-size: 0.8rem;
-      line-height: 1.6;
+      font-size: 0.72rem;
+      line-height: 1.5;
       color: #cbd5e1;
     }
 
-    .log-line { display: flex; gap: 0.5rem; }
+    .log-line { display: flex; gap: 0.4rem; }
     .log-time { color: var(--text-faint); }
     .log-info { color: var(--cyan); }
     .log-success { color: var(--green); }
@@ -749,57 +687,47 @@
       background: rgba(0, 0, 0, 0.4);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-full);
-      height: 14px;
+      height: 10px;
       overflow: hidden;
-      margin: 0.75rem 0;
-      position: relative;
+      margin: 0.5rem 0;
     }
 
     .progress-bar-fill {
       height: 100%;
       background: linear-gradient(90deg, var(--cyan), var(--purple));
       width: 0%;
-      transition: width 0.3s ease;
-      box-shadow: 0 0 12px var(--cyan);
+      transition: width 0.25s ease;
     }
 
-    /* Modal Component */
+    /* MODAL: CURATED FAVORITES EDITOR */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(8px);
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(6px);
       z-index: 100;
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 1.5rem;
+      padding: 1rem;
     }
 
-    .modal-overlay.active {
-      display: flex;
-    }
+    .modal-overlay.active { display: flex; }
 
     .modal-content {
       background: var(--bg-modal);
       border: 1px solid var(--border-bright);
       border-radius: var(--radius-lg);
       width: 100%;
-      max-width: 900px;
-      max-height: 85vh;
+      max-width: 980px;
+      max-height: 90vh;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), var(--shadow-glow-cyan);
-      animation: modalZoom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes modalZoom {
-      from { opacity: 0; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1); }
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8);
     }
 
     .modal-header {
-      padding: 1.25rem 1.5rem;
+      padding: 0.85rem 1.25rem;
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       justify-content: space-between;
@@ -807,7 +735,7 @@
     }
 
     .modal-title {
-      font-size: 1.25rem;
+      font-size: 1rem;
       font-weight: 700;
       display: flex;
       align-items: center;
@@ -818,7 +746,7 @@
       background: transparent;
       border: none;
       color: var(--text-muted);
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       cursor: pointer;
       line-height: 1;
     }
@@ -826,93 +754,145 @@
     .modal-close:hover { color: #fff; }
 
     .modal-body {
-      padding: 1.5rem;
+      padding: 1rem 1.25rem;
       overflow-y: auto;
       display: grid;
       grid-template-columns: 1.25fr 0.75fr;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
 
     .modal-footer {
-      padding: 1rem 1.5rem;
+      padding: 0.75rem 1.25rem;
       border-top: 1px solid var(--border-subtle);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: rgba(0, 0, 0, 0.2);
+      background: rgba(0, 0, 0, 0.25);
     }
 
-    /* Game Row in Modal */
-    .game-item {
+    /* Filter Chips */
+    .filter-chips-row {
       display: flex;
-      align-items: center;
-      gap: 0.85rem;
-      padding: 0.65rem 0.85rem;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
+      gap: 0.35rem;
+      margin-bottom: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 0.15rem 0.55rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-muted);
       cursor: pointer;
       transition: var(--transition);
     }
 
-    .game-item:hover {
-      background: rgba(255, 255, 255, 0.03);
+    .filter-chip:hover { color: #fff; border-color: var(--border-bright); }
+    .filter-chip.active { background: var(--cyan-dim); color: var(--cyan); border-color: rgba(0, 229, 255, 0.3); }
+
+    /* Game List in Modal */
+    .game-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .game-row {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .game-row:hover {
+      background: rgba(255, 255, 255, 0.025);
       border-color: var(--border-subtle);
     }
 
-    .game-item.selected {
-      background: rgba(0, 240, 255, 0.05);
-      border-color: rgba(0, 240, 255, 0.3);
+    .game-row.selected {
+      background: rgba(0, 229, 255, 0.035);
+      border-color: rgba(0, 229, 255, 0.2);
     }
 
-    .game-boxart-thumb {
-      width: 44px;
-      height: 44px;
+    .game-thumb {
+      width: 32px;
+      height: 32px;
       border-radius: 4px;
       object-fit: cover;
-      background: #1e293b;
+      background: #16202c;
       border: 1px solid var(--border-subtle);
+      flex-shrink: 0;
     }
 
     .game-info {
       flex: 1;
+      min-width: 0;
     }
 
-    .game-name {
-      font-size: 0.85rem;
+    .game-title {
+      font-size: 0.78rem;
       font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-main);
     }
 
-    .game-meta {
-      font-size: 0.7rem;
-      color: var(--text-muted);
+    .game-row.selected .game-title {
+      color: #fff;
     }
 
-    /* Boxart Preview Card */
-    .art-preview-card {
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 1rem;
+    .game-sub {
+      font-size: 0.65rem;
+      color: var(--text-faint);
       display: flex;
-      flex-direction: column;
       align-items: center;
-      text-align: center;
+      gap: 0.4rem;
     }
 
-    .art-large-img {
-      max-width: 180px;
-      max-height: 180px;
-      border-radius: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      margin-bottom: 0.85rem;
-      border: 1px solid var(--border-bright);
+    /* Pattern Chips */
+    .pattern-tag-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.4rem;
+      max-height: 80px;
+      overflow-y: auto;
     }
 
-    /* Mockup Gallery View */
+    .pattern-tag {
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      color: #a5f3fc;
+      border-radius: var(--radius-sm);
+      padding: 0.15rem 0.45rem;
+      font-size: 0.68rem;
+      font-family: 'Fira Code', monospace;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .pattern-tag-delete {
+      color: #f87171;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .pattern-tag-delete:hover { color: #ef4444; }
+
+    /* Gallery */
     .gallery-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1.25rem;
     }
 
     .gallery-card {
@@ -925,7 +905,6 @@
 
     .gallery-card:hover {
       border-color: var(--cyan);
-      box-shadow: var(--shadow-glow-cyan);
     }
 
     .gallery-img {
@@ -936,19 +915,18 @@
     }
 
     .gallery-info {
-      padding: 1.25rem;
+      padding: 0.85rem 1rem;
     }
 
     .gallery-title {
-      font-size: 1.05rem;
+      font-size: 0.88rem;
       font-weight: 700;
-      margin-bottom: 0.35rem;
+      margin-bottom: 0.2rem;
     }
 
     .gallery-desc {
-      font-size: 0.82rem;
+      font-size: 0.72rem;
       color: var(--text-muted);
-      line-height: 1.4;
     }
   </style>
 </head>
@@ -961,50 +939,49 @@
       <div>
         <div class="brand-title">Retro CardMaker</div>
       </div>
-      <span class="brand-tag">v0.1.0 Interactive UX Mockup</span>
+      <span class="brand-tag">v0.1.0 Compact UX</span>
     </div>
 
     <div class="nav-tabs">
       <button class="nav-tab-btn active" onclick="switchMainView('interactive')">⚡ Live Interactive Prototype</button>
-      <button class="nav-tab-btn" onclick="switchMainView('gallery')">🖼️ High-Res Mockup Gallery</button>
-      <button class="nav-tab-btn" onclick="switchMainView('spec')">📋 System Architecture</button>
+      <button class="nav-tab-btn" onclick="switchMainView('gallery')">🖼️ High-Res Mockups (New)</button>
+      <button class="nav-tab-btn" onclick="switchMainView('spec')">📋 Frontend Specifications</button>
     </div>
 
-    <div class="header-actions">
+    <div>
       <a href="https://github.com/andreaswiren/retro-cardmaker" target="_blank" class="github-btn">
-        <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        GitHub Repo
+        <svg height="15" width="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
       </a>
     </div>
   </header>
 
   <main>
 
-    <!-- INTERACTIVE VIEW -->
+    <!-- INTERACTIVE PROTOTYPE VIEW -->
     <div id="view-interactive">
       
-      <!-- Hero Context Banner -->
-      <div class="hero-banner">
-        <h1 class="hero-title">SD-Card QuickInstaller & Curated ROM Suite</h1>
-        <p class="hero-desc">
-          Safe SD-card formatting (FAT32/exFAT), handheld launcher directory presets, curated <code>favorites.json</code> management, and automated Libretro CDN artwork scraping. Tested against your real library in <code>C:\Users\Andreas\OneDrive\Roms\</code>.
-        </p>
+      <!-- Context Bar -->
+      <div class="context-bar">
+        <div class="context-left">
+          <h2>QuickInstaller & Curated ROM Suite <span class="badge badge-cyan">Desktop Optimized</span></h2>
+          <p>Compact typography, effortless curated list editing, and real library integration with <code>C:\Users\Andreas\OneDrive\Roms\</code></p>
+        </div>
 
         <div class="data-pill-row">
-          <span class="data-pill">Source: <strong>C:\Users\Andreas\OneDrive\Roms\</strong></span>
-          <span class="data-pill">Discovered Platforms: <strong>14 Systems</strong></span>
-          <span class="data-pill">NDS Library: <strong>120 ROMs + Curated Favorites</strong></span>
-          <span class="data-pill">Local Boxarts: <strong>NDS\Imgs\ (Present)</strong></span>
-          <span class="data-pill">Saves & States: <strong>Integrated</strong></span>
+          <span class="data-pill">Library: <strong>OneDrive\Roms\</strong></span>
+          <span class="data-pill">NDS Library: <strong>120 ROMs + Curated Shortlist</strong></span>
+          <span class="data-pill">Local Boxarts: <strong>nds\Imgs\ (Synced)</strong></span>
+          <span class="data-pill">Saves: <strong>.SAV Auto-Paired</strong></span>
         </div>
       </div>
 
-      <!-- 5-Step Wizard Navigation -->
+      <!-- 5-Step Compact Wizard Header -->
       <div class="wizard-steps">
         <div class="wizard-step active" onclick="goToStep(1)">
           <span class="step-number">Step 1</span>
           <span class="step-title">💾 SD Card & Format</span>
-          <span class="step-desc">Drive detection & safe format</span>
+          <span class="step-desc">Target drive & safety guard</span>
         </div>
         <div class="wizard-step" onclick="goToStep(2)">
           <span class="step-number">Step 2</span>
@@ -1014,7 +991,7 @@
         <div class="wizard-step" onclick="goToStep(3)">
           <span class="step-number">Step 3</span>
           <span class="step-title">📂 ROMs & Curate</span>
-          <span class="step-desc">Full library vs Favorites.json</span>
+          <span class="step-desc">Full list vs Favorites.json</span>
         </div>
         <div class="wizard-step" onclick="goToStep(4)">
           <span class="step-number">Step 4</span>
@@ -1024,7 +1001,7 @@
         <div class="wizard-step" onclick="goToStep(5)">
           <span class="step-number">Step 5</span>
           <span class="step-title">🚀 QuickInstall</span>
-          <span class="step-desc">Execution & live console</span>
+          <span class="step-desc">Real-time simulation</span>
         </div>
       </div>
 
@@ -1034,12 +1011,11 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">Select Target SD Card Drive</h3>
-                <span class="badge badge-cyan">Physical Devices</span>
+                <h3 class="card-title">Target SD Card Selection</h3>
+                <span class="badge badge-cyan">Physical Storage</span>
               </div>
 
               <div class="drive-selector-box">
-                <!-- Removable SD Option 1 -->
                 <div class="drive-option selected" onclick="selectDrive(this, 'E:', 'exFAT', '58.4 GB', '64.0 GB', false)">
                   <div class="drive-info">
                     <div class="drive-icon">💾</div>
@@ -1048,13 +1024,9 @@
                       <div class="drive-meta">Removable SD/USB • exFAT • Free: 58.4 GB / 64.0 GB</div>
                     </div>
                   </div>
-                  <div class="drive-status-badge">
-                    <span class="badge badge-green">Recommended</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted);">Ready to Install</span>
-                  </div>
+                  <span class="badge badge-green">Recommended</span>
                 </div>
 
-                <!-- Removable SD Option 2 -->
                 <div class="drive-option" onclick="selectDrive(this, 'F:', 'FAT32', '12.1 GB', '32.0 GB', false)">
                   <div class="drive-info">
                     <div class="drive-icon">💾</div>
@@ -1063,34 +1035,26 @@
                       <div class="drive-meta">Removable SD/USB • FAT32 • Free: 12.1 GB / 32.0 GB</div>
                     </div>
                   </div>
-                  <div class="drive-status-badge">
-                    <span class="badge badge-purple">Miyoo Mini</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted);">Available</span>
-                  </div>
+                  <span class="badge badge-purple">Miyoo Mini</span>
                 </div>
 
-                <!-- Protected System Drive -->
                 <div class="drive-option protected" onclick="selectDrive(this, 'C:', 'NTFS', '28.0 GB', '2.0 TB', true)">
                   <div class="drive-info">
                     <div class="drive-icon">🛡️</div>
                     <div>
-                      <div class="drive-letter">C: [Windows OS]</div>
-                      <div class="drive-meta">Fixed NVMe Drive • NTFS • Free: 28.0 GB / 2000 GB</div>
+                      <div class="drive-letter">C: [Windows OS NVMe]</div>
+                      <div class="drive-meta">Fixed System Disk • NTFS • Free: 28.0 GB / 2000 GB</div>
                     </div>
                   </div>
-                  <div class="drive-status-badge">
-                    <span class="badge badge-red">PROTECTED</span>
-                    <span style="font-size: 0.7rem; color: #ef4444;">Format Blocked</span>
-                  </div>
+                  <span class="badge badge-red">PROTECTED</span>
                 </div>
               </div>
 
-              <!-- Format Options Box -->
               <div class="format-card" id="format-section">
                 <div class="toggle-row">
                   <div>
-                    <strong style="font-size: 0.95rem;">Format SD-Card before copying</strong>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">Erases card cleanly with optimized cluster alignment.</div>
+                    <strong style="font-size: 0.82rem;">Format SD-Card before copying</strong>
+                    <div style="font-size: 0.68rem; color: var(--text-muted);">Formats storage cleanly with optimal cluster allocation.</div>
                   </div>
                   <label class="switch">
                     <input type="checkbox" id="format-toggle" checked onchange="toggleFormatOption(this.checked)">
@@ -1099,7 +1063,6 @@
                 </div>
 
                 <div id="fs-selectors">
-                  <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem;">Target File System:</div>
                   <div class="fs-choice-group">
                     <div class="fs-box selected" id="fs-exfat" onclick="chooseFs('exFAT')">
                       <div class="fs-title">exFAT (Recommended)</div>
@@ -1111,52 +1074,51 @@
                     </div>
                   </div>
 
-                  <div style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between;">
-                    <label style="font-size: 0.8rem; color: var(--text-muted);">Volume Label:</label>
-                    <input type="text" value="RETRO" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); color: #fff; padding: 0.35rem 0.75rem; border-radius: 4px; font-weight: 600; width: 140px;">
+                  <div style="margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Volume Label:</label>
+                    <input type="text" value="RETRO" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; width: 120px; font-size: 0.75rem;">
                   </div>
                 </div>
 
-                <div id="system-warning" style="display: none; margin-top: 0.85rem; padding: 0.75rem; background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-sm); color: #fca5a5; font-size: 0.8rem;">
-                  ⚠️ <strong>SAFETY VIOLATION PREVENTED:</strong> System Drive C: is strictly locked. The QuickInstaller refuses to format system volumes.
+                <div id="system-warning" style="display: none; margin-top: 0.65rem; padding: 0.5rem; background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-sm); color: #fca5a5; font-size: 0.72rem;">
+                  🛡️ <strong>SYSTEM DRIVE PROTECTED:</strong> Drive C: is strictly locked against formatting.
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Target Subfolder Guidance Card -->
           <div>
             <div class="card">
               <div class="card-header">
                 <h3 class="card-title">Destination Subfolder</h3>
-                <span class="badge badge-purple">Structure</span>
+                <span class="badge badge-purple">SD Layout</span>
               </div>
 
-              <div style="margin-bottom: 1rem;">
-                <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.4rem;">Root Destination Path on SD Card:</label>
-                <div style="display: flex; gap: 0.5rem;">
-                  <input type="text" id="target-subfolder-input" value="roms" oninput="updateDestPathPreview()" style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); color: #fff; padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); font-family: 'Fira Code', monospace; font-size: 0.9rem;">
+              <div style="margin-bottom: 0.75rem;">
+                <label style="font-size: 0.78rem; font-weight: 600; display: block; margin-bottom: 0.35rem;">Target Subfolder:</label>
+                <div style="display: flex; gap: 0.4rem;">
+                  <input type="text" id="target-subfolder-input" value="roms" oninput="updateDestPathPreview()" style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); color: #fff; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); font-family: 'Fira Code', monospace; font-size: 0.78rem;">
                   <button class="btn" onclick="setSubfolder('roms')">roms</button>
                   <button class="btn" onclick="setSubfolder('Roms')">Roms</button>
                   <button class="btn" onclick="setSubfolder('')">Root</button>
                 </div>
               </div>
 
-              <div style="background: rgba(0,0,0,0.3); padding: 0.85rem; border-radius: var(--radius-sm); font-size: 0.8rem; margin-bottom: 1rem;">
-                <div style="color: var(--text-faint); margin-bottom: 0.2rem;">Full Target ROMs Base Directory:</div>
+              <div style="background: rgba(0,0,0,0.3); padding: 0.65rem; border-radius: var(--radius-sm); font-size: 0.75rem; margin-bottom: 0.85rem;">
+                <span style="color: var(--text-faint);">Full Destination Base: </span>
                 <code id="full-dest-preview" style="color: var(--cyan); font-weight: 600;">E:\roms\</code>
               </div>
 
-              <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
-                <p>💡 <strong>Handheld Tips:</strong></p>
-                <ul style="margin-left: 1.25rem; margin-top: 0.4rem;">
-                  <li><strong>Anbernic RG DS Launcher / Cube:</strong> Standard is <code>E:\roms\</code></li>
-                  <li><strong>Miyoo Mini / OnionOS:</strong> Expects <code>E:\Roms\</code></li>
-                  <li><strong>EmulationStation (ES-DE):</strong> Standard is <code>E:\roms\</code></li>
+              <div style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.45;">
+                <p>💡 <strong>Profile Matches:</strong></p>
+                <ul style="margin-left: 1.15rem; margin-top: 0.3rem;">
+                  <li><strong>Anbernic RG DS Launcher:</strong> <code>E:\roms\NDS, GBA, SFC, FC</code></li>
+                  <li><strong>Miyoo Mini (OnionOS):</strong> <code>E:\Roms\GBA, FC, SFC</code></li>
+                  <li><strong>EmulationStation (ES-DE):</strong> <code>E:\roms\nds, gba, snes</code></li>
                 </ul>
               </div>
 
-              <div style="margin-top: 1.5rem; text-align: right;">
+              <div style="margin-top: 1rem; text-align: right;">
                 <button class="btn btn-primary" onclick="goToStep(2)">Proceed to Device Profiles →</button>
               </div>
             </div>
@@ -1170,149 +1132,113 @@
           <div class="card-header">
             <div>
               <h3 class="card-title">Select Emulation Frontend / Device Launcher</h3>
-              <p style="font-size: 0.8rem; color: var(--text-muted);">The QuickInstaller reorganizes directory names and boxart targets automatically.</p>
+              <p style="font-size: 0.72rem; color: var(--text-muted);">Adjusts directory naming codes and boxart destination rules automatically.</p>
             </div>
             <span class="badge badge-purple" id="active-profile-badge">Anbernic RG DS Selected</span>
           </div>
 
           <div class="profile-grid">
-            <!-- Anbernic RG DS -->
             <div class="profile-card selected" onclick="selectProfile(this, 'anbernic-ds', 'Anbernic RG DS Launcher', 'roms', 'Imgs/<rom>.png')">
               <div>
                 <div class="profile-header">
                   <div class="profile-icon">🕹️</div>
                   <div>
                     <div class="profile-name">Anbernic RG DS Launcher</div>
-                    <span class="badge badge-cyan" style="font-size: 0.65rem;">Modern Stock & Cube</span>
+                    <span class="badge badge-cyan" style="font-size: 0.6rem;">Cube & Dual-Screen</span>
                   </div>
                 </div>
-                <div class="profile-desc">Dual-screen Anbernic layout. Uses clean short codes (FC, SFC, GBA, NDS, MD, PS). Boxart placed in Imgs/ inside each system.</div>
+                <div class="profile-desc">Short codes (FC, SFC, GBA, NDS, MD, PS). Artwork saved directly in Imgs/ inside each system.</div>
               </div>
               <div class="profile-pattern">Pattern: E:\roms\NDS\Imgs\Chrono_Trigger.png</div>
             </div>
 
-            <!-- EmulationStation ES-DE -->
             <div class="profile-card" onclick="selectProfile(this, 'es-de', 'EmulationStation (ES-DE)', 'roms', 'downloaded_media/<sys>/covers/<rom>.png')">
               <div>
                 <div class="profile-header">
                   <div class="profile-icon">🎮</div>
                   <div>
                     <div class="profile-name">EmulationStation (ES-DE)</div>
-                    <span class="badge badge-purple" style="font-size: 0.65rem;">Universal Frontend</span>
+                    <span class="badge badge-purple" style="font-size: 0.6rem;">Universal</span>
                   </div>
                 </div>
-                <div class="profile-desc">Android, Steam Deck, Windows, Linux. Uses roms/gba, roms/nds. Boxarts saved in downloaded_media/ or media/covers/.</div>
+                <div class="profile-desc">Standard lowercase IDs (gba, nds, snes). Boxarts in downloaded_media/covers/.</div>
               </div>
               <div class="profile-pattern">Pattern: E:\downloaded_media\nds\covers\Chrono.png</div>
             </div>
 
-            <!-- RetroArch -->
             <div class="profile-card" onclick="selectProfile(this, 'retroarch', 'RetroArch', 'roms', 'thumbnails/<System>/Named_Boxarts/<rom>.png')">
               <div>
                 <div class="profile-header">
                   <div class="profile-icon">👾</div>
                   <div>
                     <div class="profile-name">RetroArch Standard</div>
-                    <span class="badge badge-green" style="font-size: 0.65rem;">Libretro Hierarchy</span>
+                    <span class="badge badge-green" style="font-size: 0.6rem;">Libretro</span>
                   </div>
                 </div>
-                <div class="profile-desc">Standard playlist directories. Places artwork into thumbnails/System_Name/Named_Boxarts/ for native scanner detection.</div>
+                <div class="profile-desc">Full Libretro system names with thumbnails/Named_Boxarts/ hierarchy.</div>
               </div>
               <div class="profile-pattern">Pattern: E:\thumbnails\Nintendo_-_DS\Named_Boxarts\...</div>
             </div>
 
-            <!-- GarlicOS / Anbernic Older -->
-            <div class="profile-card" onclick="selectProfile(this, 'garlic-os', 'GarlicOS / Anbernic Legacy', 'Roms', 'Roms/<CODE>/Imgs/<rom>.png')">
+            <div class="profile-card" onclick="selectProfile(this, 'garlic-os', 'GarlicOS (RG35XX / RG350)', 'Roms', 'Roms/<CODE>/Imgs/<rom>.png')">
               <div>
                 <div class="profile-header">
                   <div class="profile-icon">🧄</div>
                   <div>
-                    <div class="profile-name">GarlicOS (RG35XX / RG350)</div>
-                    <span class="badge badge-amber" style="font-size: 0.65rem;">Legacy Anbernic</span>
+                    <div class="profile-name">GarlicOS (RG35XX)</div>
+                    <span class="badge badge-amber" style="font-size: 0.6rem;">Legacy</span>
                   </div>
                 </div>
-                <div class="profile-desc">Uses Roms/<CODE> with Imgs/ folder. Ideal for RG35XX 1.x, RG350, and RG351 handhelds.</div>
+                <div class="profile-desc">Uses Roms/<CODE> folders with Imgs/ boxart thumbnails.</div>
               </div>
               <div class="profile-pattern">Pattern: E:\Roms\NDS\Imgs\Chrono_Trigger.png</div>
             </div>
 
-            <!-- Miyoo Mini OnionOS -->
             <div class="profile-card" onclick="selectProfile(this, 'onion-os', 'Miyoo Mini / OnionOS', 'Roms', 'Roms/<CODE>/Imgs/<rom>.png')">
               <div>
                 <div class="profile-header">
                   <div class="profile-icon">🧅</div>
                   <div>
                     <div class="profile-name">Miyoo Mini / OnionOS</div>
-                    <span class="badge badge-cyan" style="font-size: 0.65rem;">Miyoo Mini v4 / Plus</span>
+                    <span class="badge badge-cyan" style="font-size: 0.6rem;">Miyoo</span>
                   </div>
                 </div>
-                <div class="profile-desc">OnionOS directory architecture with Roms/<CODE> and high-speed Imgs/ previews.</div>
+                <div class="profile-desc">Standard OnionOS structure with Roms/<CODE> and Imgs/ image caching.</div>
               </div>
               <div class="profile-pattern">Pattern: E:\Roms\GBA\Imgs\Pokemon_Emerald.png</div>
             </div>
 
-            <!-- Daijisho -->
             <div class="profile-card" onclick="selectProfile(this, 'daijisho', 'Daijishō Launcher (Android)', 'roms', 'roms/<sys>/thumbnails/<rom>.png')">
               <div>
                 <div class="profile-header">
                   <div class="profile-icon">📱</div>
                   <div>
                     <div class="profile-name">Daijishō Launcher</div>
-                    <span class="badge badge-purple" style="font-size: 0.65rem;">Android Handhelds</span>
+                    <span class="badge badge-purple" style="font-size: 0.6rem;">Android</span>
                   </div>
                 </div>
-                <div class="profile-desc">Designed for Retroid Pocket, Odin, and Android devices. Places covers in thumbnails/ folder.</div>
+                <div class="profile-desc">Designed for Retroid Pocket and Odin. Places covers in thumbnails/.</div>
               </div>
               <div class="profile-pattern">Pattern: E:\roms\nds\thumbnails\Chrono.png</div>
             </div>
-
-            <!-- Pegasus -->
-            <div class="profile-card" onclick="selectProfile(this, 'pegasus', 'Pegasus Frontend', 'roms', 'roms/<sys>/media/<rom>.png')">
-              <div>
-                <div class="profile-header">
-                  <div class="profile-icon">🐎</div>
-                  <div>
-                    <div class="profile-name">Pegasus Frontend</div>
-                    <span class="badge badge-green" style="font-size: 0.65rem;">Cross-Platform</span>
-                  </div>
-                </div>
-                <div class="profile-desc">Creates standard media/boxart structure and generates a compatible metadata.pegasus.txt file.</div>
-              </div>
-              <div class="profile-pattern">Pattern: E:\roms\nds\media\Chrono_Trigger.png</div>
-            </div>
-
-            <!-- Batocera ArkOS -->
-            <div class="profile-card" onclick="selectProfile(this, 'batocera', 'Batocera / ArkOS / AmberELEC', 'roms', 'roms/<sys>/images/<rom>-image.png')">
-              <div>
-                <div class="profile-header">
-                  <div class="profile-icon">🐧</div>
-                  <div>
-                    <div class="profile-name">Batocera / ArkOS</div>
-                    <span class="badge badge-amber" style="font-size: 0.65rem;">Linux Handhelds</span>
-                  </div>
-                </div>
-                <div class="profile-desc">Standard Linux SBC layout with <rom>-image.png naming scheme for scraped artwork.</div>
-              </div>
-              <div class="profile-pattern">Pattern: E:\roms\nds\images\Chrono-image.png</div>
-            </div>
           </div>
 
-          <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
-            <button class="btn" onclick="goToStep(1)">← Back to SD Card</button>
+          <div style="margin-top: 1rem; display: flex; justify-content: space-between;">
+            <button class="btn" onclick="goToStep(1)">← Back</button>
             <button class="btn btn-primary" onclick="goToStep(3)">Proceed to ROMs & Favorites →</button>
           </div>
         </div>
       </div>
 
-      <!-- STEP 3: ROMS & FAVORITES -->
+      <!-- STEP 3: ROMS & CURATE FAVORITES -->
       <div id="step-3" class="step-panel">
         <div class="card">
           <div class="card-header">
             <div>
               <h3 class="card-title">Discovered Platforms & Curated Games</h3>
-              <p style="font-size: 0.8rem; color: var(--text-muted);">Scanned directly from <code>C:\Users\Andreas\OneDrive\Roms\</code></p>
+              <p style="font-size: 0.72rem; color: var(--text-muted);">Scanned from <code>C:\Users\Andreas\OneDrive\Roms\</code>. Toggle between full ROM lists or curated shortlists.</p>
             </div>
-            <div style="display: flex; gap: 0.5rem;">
+            <div style="display: flex; gap: 0.4rem;">
               <button class="btn" onclick="toggleAllPlatforms(true)">Select All</button>
               <button class="btn" onclick="toggleAllPlatforms(false)">Deselect All</button>
             </div>
@@ -1325,15 +1251,15 @@
                 <input type="checkbox" checked class="custom-checkbox">
                 <div class="platform-details">
                   <h4>Nintendo DS (NDS)</h4>
-                  <p>120 ROMs • Found <strong>Favorites/</strong> subfolder • Found <strong>Imgs/</strong> boxarts</p>
+                  <p>120 ROMs • Found <strong>Favorites/</strong> folder • Found <strong>Imgs/</strong> boxarts</p>
                 </div>
               </div>
               <div class="platform-actions">
                 <div class="segmented-control">
                   <button class="seg-btn" onclick="setMode(this, 'all')">All (120)</button>
-                  <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (18)</button>
+                  <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (<span id="nds-fav-count-badge">8</span>)</button>
                 </div>
-                <button class="btn btn-cyan" onclick="openFavoritesModal('nds')">⭐ Curate Favorites</button>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('nds')">⭐ Curate Favorites...</button>
               </div>
             </div>
 
@@ -1343,7 +1269,7 @@
                 <input type="checkbox" checked class="custom-checkbox">
                 <div class="platform-details">
                   <h4>Game Boy Advance (GBA)</h4>
-                  <p>350 ROMs in <code>gameboy advance\roms</code> • Found <strong>saves/</strong></p>
+                  <p>350 ROMs in <code>gameboy advance\roms</code> • Paired <strong>saves/</strong></p>
                 </div>
               </div>
               <div class="platform-actions">
@@ -1351,7 +1277,7 @@
                   <button class="seg-btn" onclick="setMode(this, 'all')">All (350)</button>
                   <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (15)</button>
                 </div>
-                <button class="btn btn-cyan" onclick="openFavoritesModal('gba')">⭐ Curate Favorites</button>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('gba')">⭐ Curate Favorites...</button>
               </div>
             </div>
 
@@ -1361,7 +1287,7 @@
                 <input type="checkbox" checked class="custom-checkbox">
                 <div class="platform-details">
                   <h4>Super Nintendo (SNES)</h4>
-                  <p>210 ROMs in <code>snes</code> • Curated shortlist ready</p>
+                  <p>210 ROMs in <code>snes</code></p>
                 </div>
               </div>
               <div class="platform-actions">
@@ -1369,7 +1295,7 @@
                   <button class="seg-btn active" onclick="setMode(this, 'all')">All (210)</button>
                   <button class="seg-btn" onclick="setMode(this, 'fav')">Curated (15)</button>
                 </div>
-                <button class="btn btn-cyan" onclick="openFavoritesModal('snes')">⭐ Curate Favorites</button>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('snes')">⭐ Curate Favorites...</button>
               </div>
             </div>
 
@@ -1387,7 +1313,7 @@
                   <button class="seg-btn" onclick="setMode(this, 'all')">All (180)</button>
                   <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (15)</button>
                 </div>
-                <button class="btn btn-cyan" onclick="openFavoritesModal('nes')">⭐ Curate Favorites</button>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('nes')">⭐ Curate Favorites...</button>
               </div>
             </div>
 
@@ -1405,31 +1331,13 @@
                   <button class="seg-btn active" onclick="setMode(this, 'all')">All (45)</button>
                   <button class="seg-btn" onclick="setMode(this, 'fav')">Curated (14)</button>
                 </div>
-                <button class="btn btn-cyan" onclick="openFavoritesModal('psx')">⭐ Curate Favorites</button>
-              </div>
-            </div>
-
-            <!-- Mega Drive -->
-            <div class="platform-row">
-              <div class="platform-left">
-                <input type="checkbox" checked class="custom-checkbox">
-                <div class="platform-details">
-                  <h4>Sega Mega Drive / Genesis</h4>
-                  <p>140 ROMs in <code>sega mega drive</code></p>
-                </div>
-              </div>
-              <div class="platform-actions">
-                <div class="segmented-control">
-                  <button class="seg-btn" onclick="setMode(this, 'all')">All (140)</button>
-                  <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (13)</button>
-                </div>
-                <button class="btn btn-cyan" onclick="openFavoritesModal('megadrive')">⭐ Curate Favorites</button>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('psx')">⭐ Curate Favorites...</button>
               </div>
             </div>
           </div>
 
-          <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
-            <button class="btn" onclick="goToStep(2)">← Back to Profiles</button>
+          <div style="margin-top: 1rem; display: flex; justify-content: space-between;">
+            <button class="btn" onclick="goToStep(2)">← Back</button>
             <button class="btn btn-primary" onclick="goToStep(4)">Proceed to Boxart Pipeline →</button>
           </div>
         </div>
@@ -1447,8 +1355,8 @@
 
               <div class="toggle-row">
                 <div>
-                  <strong style="font-size: 0.95rem;">Enable Boxart Syncing during Copy</strong>
-                  <div style="font-size: 0.75rem; color: var(--text-muted);">Matches each ROM and places cover image in your launcher's art folder.</div>
+                  <strong style="font-size: 0.85rem;">Enable Boxart Syncing during Copy</strong>
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Reuses local covers in Imgs/ and downloads missing ones from Libretro.</div>
                 </div>
                 <label class="switch">
                   <input type="checkbox" checked>
@@ -1456,18 +1364,15 @@
                 </label>
               </div>
 
-              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1rem; margin-top: 1rem;">
-                <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.4rem;">Media Pipeline Hierarchy:</h4>
-                <ol style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; margin-left: 1.25rem;">
-                  <li><strong>Local Cache First:</strong> Copies existing boxarts found in <code>Imgs/</code> or <code>_retroarch_thumbnails/</code>.</li>
-                  <li><strong>Libretro CDN Fallback:</strong> If missing, downloads official PNG boxarts from GitHub CDN (100% free, no API keys).</li>
-                  <li><strong>Illegal Character Normalization:</strong> Replaces <code>& * / : ` < > ? \ | "</code> with Libretro standard <code>_</code>.</li>
-                  <li><strong>Target Frontend Renaming:</strong> Formats to <code><rom>.png</code>, <code><rom>-image.png</code>, or <code>covers/<rom>.png</code>.</li>
-                </ol>
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem; margin-top: 0.75rem; font-size: 0.75rem; line-height: 1.5; color: var(--text-muted);">
+                <div style="font-weight: 700; color: var(--cyan); margin-bottom: 0.25rem;">Boxart Strategy:</div>
+                <p>1. Syncs existing <code>nds\Imgs\</code> directly.</p>
+                <p>2. Normalizes filenames (replaces <code>& * / :</code> with <code>_</code>).</p>
+                <p>3. Places into target folder (<code>E:\roms\NDS\Imgs\</code> for Anbernic RG DS).</p>
               </div>
 
-              <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
-                <button class="btn" onclick="goToStep(3)">← Back to ROMs</button>
+              <div style="margin-top: 1rem; display: flex; justify-content: space-between;">
+                <button class="btn" onclick="goToStep(3)">← Back</button>
                 <button class="btn btn-primary" onclick="goToStep(5)">Review & Run QuickInstaller →</button>
               </div>
             </div>
@@ -1476,16 +1381,16 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">Live Boxart Preview</h3>
-                <span class="badge badge-cyan">Matched Real Art</span>
+                <h3 class="card-title">Live Scraper Preview</h3>
+                <span class="badge badge-cyan">Matched Cover</span>
               </div>
 
-              <div class="art-preview-card">
-                <img src="assets/chrono_trigger.png" alt="Chrono Trigger Cover" class="art-large-img" onerror="this.src='assets/cardmaker_ui_mockup.jpg'">
-                <div style="font-weight: 700; font-size: 1rem;">Chrono Trigger (Europe) (En,Fr)</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Nintendo DS • Local Media in <code>nds\Imgs\</code></div>
-                <div class="profile-pattern" style="width: 100%; text-align: left;">
-                  Target Path: <strong>E:\roms\NDS\Imgs\Chrono Trigger.png</strong>
+              <div style="display: flex; gap: 1rem; align-items: center; background: rgba(0,0,0,0.25); padding: 0.85rem; border-radius: var(--radius-md);">
+                <img src="assets/chrono_trigger.png" alt="Cover" style="width: 70px; height: 70px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-bright);">
+                <div>
+                  <div style="font-weight: 700; font-size: 0.85rem;">Chrono Trigger</div>
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Source: <code>nds\Imgs\Chrono Trigger (Europe).png</code></div>
+                  <div class="profile-pattern" style="margin-top: 0.35rem;">Destination: E:\roms\NDS\Imgs\Chrono Trigger.png</div>
                 </div>
               </div>
             </div>
@@ -1499,37 +1404,33 @@
           <div>
             <div class="card">
               <div class="card-header">
-                <h3 class="card-title">QuickInstall Execution Center</h3>
+                <h3 class="card-title">QuickInstall Execution</h3>
                 <span class="badge badge-green" id="install-status-badge">Ready</span>
               </div>
 
-              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: #fff;">Summary of Actions:</div>
-                <ul style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.7; margin-left: 1.25rem;">
-                  <li>Format target drive <strong style="color: var(--cyan);">E: (64GB)</strong> as <strong style="color: var(--cyan);">exFAT</strong> (Label: RETRO)</li>
-                  <li>Target Device Profile: <strong style="color: var(--purple);">Anbernic RG DS Launcher</strong> (Folder: <code>E:\roms\</code>)</li>
-                  <li>Platforms: <strong>NDS (18 Curated), GBA (15 Curated), SNES (All 210), NES (15 Curated), PSX (All 45), MD (13 Curated)</strong></li>
-                  <li>Total ROMs queued: <strong style="color: #fff;">316 games</strong> (~14.2 GB)</li>
-                  <li>Boxart Syncing: <strong style="color: var(--green);">Enabled</strong> (Local Imgs + Libretro fallback)</li>
-                </ul>
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem; margin-bottom: 0.85rem; font-size: 0.75rem; line-height: 1.6; color: var(--text-muted);">
+                <div>• Target: <strong style="color: var(--cyan);">E: (64GB)</strong> as <strong style="color: var(--cyan);">exFAT</strong> (RETRO)</div>
+                <div>• Profile: <strong style="color: var(--purple);">Anbernic RG DS Launcher</strong> (<code>E:\roms\</code>)</div>
+                <div>• Platforms: NDS (Curated), GBA (Curated), SNES (All), NES (Curated), PSX (All)</div>
+                <div>• Total: <strong style="color: #fff;">306 ROMs + Paired Saves + Boxarts</strong></div>
               </div>
 
-              <div style="margin-bottom: 1.25rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 600;">
-                  <span id="progress-phase-label">Status: Ready to Launch</span>
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600;">
+                  <span id="progress-phase-label">Status: Ready</span>
                   <span id="progress-percent-label" style="color: var(--cyan);">0%</span>
                 </div>
                 <div class="progress-bar-container">
                   <div class="progress-bar-fill" id="progress-bar"></div>
                 </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);" id="current-file-label">Awaiting start command...</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);" id="current-file-label">Awaiting launch...</div>
               </div>
 
-              <div style="display: flex; gap: 0.75rem;">
-                <button class="btn btn-green" id="start-btn" onclick="startSimulatedInstall()" style="font-size: 1rem; padding: 0.65rem 1.5rem;">
+              <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem;">
+                <button class="btn btn-green" id="start-btn" onclick="startSimulatedInstall()">
                   🚀 Start QuickInstaller
                 </button>
-                <button class="btn" id="cancel-btn" onclick="cancelSimulatedInstall()" style="display: none; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                <button class="btn" id="cancel-btn" onclick="cancelSimulatedInstall()" style="display: none; color: #ef4444;">
                   🛑 Cancel
                 </button>
               </div>
@@ -1542,13 +1443,12 @@
                 <span class="terminal-dot dot-red"></span>
                 <span class="terminal-dot dot-yellow"></span>
                 <span class="terminal-dot dot-green"></span>
-                <span style="margin-left: 0.5rem;">QuickInstaller Real-Time Console</span>
+                <span style="margin-left: 0.4rem;">Console Output</span>
               </div>
               <div class="terminal-body" id="terminal-body">
-                <div class="log-line"><span class="log-time">[22:45:01]</span> <span class="log-info">[INIT]</span> Retro CardMaker core engine ready.</div>
-                <div class="log-line"><span class="log-time">[22:45:02]</span> <span class="log-info">[DRIVE]</span> Target drive E: verified (Removable SD).</div>
-                <div class="log-line"><span class="log-time">[22:45:02]</span> <span class="log-info">[SRC]</span> Loaded library from C:\Users\Andreas\OneDrive\Roms\</div>
-                <div class="log-line"><span class="log-time">[22:45:03]</span> <span class="log-success">[PROFILE]</span> Layout configured for Anbernic RG DS Launcher.</div>
+                <div class="log-line"><span class="log-time">[23:10:01]</span> <span class="log-info">[INIT]</span> Retro CardMaker core engine ready.</div>
+                <div class="log-line"><span class="log-time">[23:10:02]</span> <span class="log-info">[DRIVE]</span> Target drive E: verified (Removable SD).</div>
+                <div class="log-line"><span class="log-time">[23:10:02]</span> <span class="log-info">[SRC]</span> Loaded library from C:\Users\Andreas\OneDrive\Roms\</div>
               </div>
             </div>
           </div>
@@ -1558,27 +1458,27 @@
 
     <!-- GALLERY VIEW -->
     <div id="view-gallery" style="display: none;">
-      <div class="hero-banner">
-        <h2 class="hero-title">High-Resolution Desktop Application Mockups</h2>
-        <p class="hero-desc">
-          Pixel-accurate visual UI screens generated for Retro CardMaker on Windows 11. Designed with ergonomic controls, high contrast readability for handheld displays, and instant favorites curation.
-        </p>
+      <div class="context-bar">
+        <div class="context-left">
+          <h2>High-Resolution Desktop Application Mockups</h2>
+          <p>Compact, high-density desktop typography with full favorites editor and live JSON preview.</p>
+        </div>
       </div>
 
       <div class="gallery-grid">
         <div class="gallery-card">
-          <img src="assets/cardmaker_ui_mockup.jpg" alt="Retro CardMaker Main Desktop Interface" class="gallery-img" onclick="openLightbox(this.src)">
+          <img src="assets/cardmaker_compact_ui.jpg" alt="Compact UI Mockup" class="gallery-img" onclick="openLightbox(this.src)">
           <div class="gallery-info">
-            <div class="gallery-title">Desktop Application Interface Mockup</div>
-            <div class="gallery-desc">Full 5-step horizontal quickinstaller wizard, SD card formatting module with hardware safety lock, device profile selector, and dual progress bars.</div>
+            <div class="gallery-title">Refined Compact Desktop Interface (New)</div>
+            <div class="gallery-desc">Refined font sizes, desktop-dense game curation table, live favorites.json code preview, and search filters.</div>
           </div>
         </div>
 
         <div class="gallery-card">
           <img src="assets/cardmaker_favorites_modal.jpg" alt="Curated Favorites Modal Mockup" class="gallery-img" onclick="openLightbox(this.src)">
           <div class="gallery-info">
-            <div class="gallery-title">Curated Favorites & Shortlist Modal</div>
-            <div class="gallery-desc">Interactive game selector with live boxart preview, top classics recommendations, instant favorites.json serializer, and Libretro thumbnail sync.</div>
+            <div class="gallery-title">Curated Favorites Modal Mockup</div>
+            <div class="gallery-desc">Game selection checklist with Top Classic badges, search filters, and Libretro boxart preview.</div>
           </div>
         </div>
       </div>
@@ -1588,61 +1488,42 @@
     <div id="view-spec" style="display: none;">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Technical Specification & Launcher Rules</h2>
-          <span class="badge badge-cyan">Architecture Spec</span>
+          <h2 class="card-title">Frontend Rules & Target Structures</h2>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
           <thead>
             <tr style="border-bottom: 2px solid var(--border-bright); text-align: left;">
-              <th style="padding: 0.75rem 0.5rem;">Frontend / Device</th>
-              <th style="padding: 0.75rem 0.5rem;">Recommended Subfolder</th>
-              <th style="padding: 0.75rem 0.5rem;">Platform Code Pattern</th>
-              <th style="padding: 0.75rem 0.5rem;">Boxart Placement & Naming Pattern</th>
+              <th style="padding: 0.5rem;">Frontend / Device</th>
+              <th style="padding: 0.5rem;">ROM Folder Pattern</th>
+              <th style="padding: 0.5rem;">Boxart Placement & Naming Pattern</th>
             </tr>
           </thead>
           <tbody>
             <tr style="border-bottom: 1px solid var(--border-subtle);">
-              <td style="padding: 0.75rem 0.5rem;"><strong>Anbernic RG DS Launcher</strong></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
-              <td style="padding: 0.75rem 0.5rem;">Short Codes (<code>FC, SFC, GBA, NDS, PS, MD</code>)</td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/<CODE>/Imgs/<rom_stem>.png</code></td>
+              <td style="padding: 0.5rem;"><strong>Anbernic RG DS Launcher</strong></td>
+              <td style="padding: 0.5rem;"><code>roms/<CODE>/</code> (e.g. <code>FC, SFC, GBA, NDS, PS, MD</code>)</td>
+              <td style="padding: 0.5rem;"><code>roms/<CODE>/Imgs/<rom_stem>.png</code></td>
             </tr>
             <tr style="border-bottom: 1px solid var(--border-subtle);">
-              <td style="padding: 0.75rem 0.5rem;"><strong>EmulationStation (ES-DE)</strong></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
-              <td style="padding: 0.75rem 0.5rem;">Standard IDs (<code>nes, snes, gba, nds, psx</code>)</td>
-              <td style="padding: 0.75rem 0.5rem;"><code>downloaded_media/<sys>/covers/<rom_stem>.png</code></td>
+              <td style="padding: 0.5rem;"><strong>EmulationStation (ES-DE)</strong></td>
+              <td style="padding: 0.5rem;"><code>roms/<system>/</code> (e.g. <code>nes, snes, gba, nds</code>)</td>
+              <td style="padding: 0.5rem;"><code>downloaded_media/<sys>/covers/<rom_stem>.png</code></td>
             </tr>
             <tr style="border-bottom: 1px solid var(--border-subtle);">
-              <td style="padding: 0.75rem 0.5rem;"><strong>RetroArch</strong></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
-              <td style="padding: 0.75rem 0.5rem;">Libretro System Names</td>
-              <td style="padding: 0.75rem 0.5rem;"><code>thumbnails/<Libretro_System>/Named_Boxarts/<rom_stem>.png</code></td>
+              <td style="padding: 0.5rem;"><strong>RetroArch</strong></td>
+              <td style="padding: 0.5rem;"><code>roms/<Libretro_System>/</code></td>
+              <td style="padding: 0.5rem;"><code>thumbnails/<System>/Named_Boxarts/<rom_stem>.png</code></td>
             </tr>
             <tr style="border-bottom: 1px solid var(--border-subtle);">
-              <td style="padding: 0.75rem 0.5rem;"><strong>GarlicOS / Anbernic Legacy</strong></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>Roms/</code></td>
-              <td style="padding: 0.75rem 0.5rem;">Short Codes (<code>FC, SFC, GBA, NDS, PS</code>)</td>
-              <td style="padding: 0.75rem 0.5rem;"><code>Roms/<CODE>/Imgs/<rom_stem>.png</code></td>
+              <td style="padding: 0.5rem;"><strong>GarlicOS / Miyoo Mini</strong></td>
+              <td style="padding: 0.5rem;"><code>Roms/<CODE>/</code></td>
+              <td style="padding: 0.5rem;"><code>Roms/<CODE>/Imgs/<rom_stem>.png</code></td>
             </tr>
             <tr style="border-bottom: 1px solid var(--border-subtle);">
-              <td style="padding: 0.75rem 0.5rem;"><strong>Miyoo Mini (OnionOS)</strong></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>Roms/</code></td>
-              <td style="padding: 0.75rem 0.5rem;">Short Codes (<code>FC, SFC, GBA, PS</code>)</td>
-              <td style="padding: 0.75rem 0.5rem;"><code>Roms/<CODE>/Imgs/<rom_stem>.png</code></td>
-            </tr>
-            <tr style="border-bottom: 1px solid var(--border-subtle);">
-              <td style="padding: 0.75rem 0.5rem;"><strong>Daijishō Launcher</strong></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
-              <td style="padding: 0.75rem 0.5rem;">Standard IDs (<code>gba, nds, snes</code>)</td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/<sys>/thumbnails/<rom_stem>.png</code></td>
-            </tr>
-            <tr style="border-bottom: 1px solid var(--border-subtle);">
-              <td style="padding: 0.75rem 0.5rem;"><strong>Pegasus Frontend</strong></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
-              <td style="padding: 0.75rem 0.5rem;">Standard IDs + <code>metadata.pegasus.txt</code></td>
-              <td style="padding: 0.75rem 0.5rem;"><code>roms/<sys>/media/<rom_stem>.png</code></td>
+              <td style="padding: 0.5rem;"><strong>Daijishō Launcher</strong></td>
+              <td style="padding: 0.5rem;"><code>roms/<system>/</code></td>
+              <td style="padding: 0.5rem;"><code>roms/<sys>/thumbnails/<rom_stem>.png</code></td>
             </tr>
           </tbody>
         </table>
@@ -1651,121 +1532,209 @@
 
   </main>
 
-  <!-- FAVORITES CURATION MODAL -->
+  <!-- SUPERCHARGED FAVORITES CURATION MODAL -->
   <div class="modal-overlay" id="fav-modal">
     <div class="modal-content">
       <div class="modal-header">
         <h3 class="modal-title">
           <span>⭐ Curate Favorites:</span>
           <span style="color: var(--cyan);" id="modal-platform-title">Nintendo DS (NDS)</span>
-          <span class="badge badge-purple" id="modal-count-badge">18 Curated Selected</span>
+          <span class="badge badge-purple" id="modal-curated-badge"><span id="selected-counter">8</span> of 19 Curated</span>
         </h3>
         <button class="modal-close" onclick="closeFavoritesModal()">&times;</button>
       </div>
 
       <div class="modal-body">
-        <!-- Left: Game List -->
+        <!-- Left: Searchable Game Checklist -->
         <div>
-          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem;">
-            <input type="text" placeholder="Search games in library..." style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); color: #fff; padding: 0.45rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem;">
-            <button class="btn" onclick="selectTopClassics()">Top Classics</button>
-            <button class="btn" onclick="toggleSelectAllModal(true)">All</button>
+          <!-- Search & Filter Bar -->
+          <div style="display: flex; gap: 0.4rem; margin-bottom: 0.5rem;">
+            <input type="text" id="game-search-input" oninput="filterGamesList()" placeholder="🔍 Live filter games (e.g. 'Mario', 'Zelda', 'Chrono')..." style="flex: 1; background: rgba(0,0,0,0.35); border: 1px solid var(--border-subtle); color: #fff; padding: 0.35rem 0.65rem; border-radius: var(--radius-sm); font-size: 0.78rem;">
+            <button class="btn" onclick="selectTopEssentials()">⭐ Top Essentials</button>
+            <button class="btn" onclick="toggleAllModalGames(true)">All</button>
+            <button class="btn" onclick="toggleAllModalGames(false)">Clear</button>
           </div>
 
-          <div style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem;" id="modal-game-list">
-            <!-- Game 1 -->
-            <div class="game-item selected" onclick="toggleGameItem(this, 'Chrono Trigger (Europe) (En,Fr).nds', 'Chrono Trigger', 'assets/chrono_trigger.png')">
+          <!-- Filter Chips -->
+          <div class="filter-chips-row">
+            <span class="filter-chip active" onclick="applyTagFilter('all', this)">All (19)</span>
+            <span class="filter-chip" onclick="applyTagFilter('selected', this)">Selected (<span id="chip-sel-count">8</span>)</span>
+            <span class="filter-chip" onclick="applyTagFilter('essential', this)">Top Classics (7)</span>
+            <span class="filter-chip" onclick="applyTagFilter('saves', this)">Has Save File (.SAV)</span>
+          </div>
+
+          <!-- Game Rows Table -->
+          <div style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.35rem; background: rgba(0,0,0,0.2);" id="modal-game-list">
+            
+            <!-- Real Games from OneDrive\Roms\nds -->
+            <div class="game-row selected" data-game="Chrono Trigger" data-filename="Chrono Trigger (Europe) (En,Fr).nds" data-essential="true" data-save="false" onclick="toggleGameRow(this)">
               <input type="checkbox" checked class="custom-checkbox">
-              <img src="assets/chrono_trigger.png" alt="Cover" class="game-boxart-thumb" onerror="this.src='assets/cardmaker_ui_mockup.jpg'">
+              <img src="assets/chrono_trigger.png" alt="Cover" class="game-thumb" onerror="this.src='assets/cardmaker_compact_ui.jpg'">
               <div class="game-info">
-                <div class="game-name">Chrono Trigger</div>
-                <div class="game-meta">134.2 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+                <div class="game-title">Chrono Trigger</div>
+                <div class="game-sub">134.2 MB • <span class="badge badge-green" style="font-size: 0.55rem;">Essential</span> • In <code>nds\Favorites\</code></div>
               </div>
             </div>
 
-            <!-- Game 2 -->
-            <div class="game-item selected" onclick="toggleGameItem(this, 'Castlevania - Dawn of Sorrow.nds', 'Castlevania - Dawn of Sorrow', 'assets/castlevania.png')">
+            <div class="game-row selected" data-game="Castlevania: Dawn of Sorrow" data-filename="Castlevania - Dawn of Sorrow.nds" data-essential="true" data-save="false" onclick="toggleGameRow(this)">
               <input type="checkbox" checked class="custom-checkbox">
-              <img src="assets/castlevania.png" alt="Cover" class="game-boxart-thumb" onerror="this.src='assets/cardmaker_ui_mockup.jpg'">
+              <img src="assets/castlevania.png" alt="Cover" class="game-thumb" onerror="this.src='assets/cardmaker_compact_ui.jpg'">
               <div class="game-info">
-                <div class="game-name">Castlevania - Dawn of Sorrow</div>
-                <div class="game-meta">67.1 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+                <div class="game-title">Castlevania - Dawn of Sorrow</div>
+                <div class="game-sub">67.1 MB • <span class="badge badge-green" style="font-size: 0.55rem;">Essential</span> • In <code>nds\Favorites\</code></div>
               </div>
             </div>
 
-            <!-- Game 3 -->
-            <div class="game-item selected" onclick="toggleGameItem(this, 'Mario Kart DS.nds', 'Mario Kart DS', 'assets/cardmaker_ui_mockup.jpg')">
+            <div class="game-row selected" data-game="Dragon Quest V" data-filename="Dragon Quest V - Hand of the Heavenly Bride.nds" data-essential="true" data-save="true" onclick="toggleGameRow(this)">
               <input type="checkbox" checked class="custom-checkbox">
-              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🏎️</div>
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🗡️</div>
               <div class="game-info">
-                <div class="game-name">Mario Kart DS</div>
-                <div class="game-meta">33.5 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+                <div class="game-title">Dragon Quest V - Hand of the Heavenly Bride</div>
+                <div class="game-sub">134.2 MB • <span class="badge badge-cyan" style="font-size: 0.55rem;">.SAV Attached</span> • In <code>nds\Favorites\</code></div>
               </div>
             </div>
 
-            <!-- Game 4 -->
-            <div class="game-item selected" onclick="toggleGameItem(this, 'New Super Mario Bros.nds', 'New Super Mario Bros', 'assets/cardmaker_ui_mockup.jpg')">
+            <div class="game-row selected" data-game="Mario Kart DS" data-filename="Mario Kart DS.nds" data-essential="true" data-save="false" onclick="toggleGameRow(this)">
               <input type="checkbox" checked class="custom-checkbox">
-              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🍄</div>
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🏎️</div>
               <div class="game-info">
-                <div class="game-name">New Super Mario Bros</div>
-                <div class="game-meta">33.5 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+                <div class="game-title">Mario Kart DS</div>
+                <div class="game-sub">33.5 MB • <span class="badge badge-green" style="font-size: 0.55rem;">Essential</span> • In <code>nds\Favorites\</code></div>
               </div>
             </div>
 
-            <!-- Game 5 -->
-            <div class="game-item selected" onclick="toggleGameItem(this, 'Dragon Quest V - Hand of the Heavenly Bride.nds', 'Dragon Quest V', 'assets/cardmaker_ui_mockup.jpg')">
+            <div class="game-row selected" data-game="New Super Mario Bros" data-filename="New Super Mario Bros.nds" data-essential="true" data-save="false" onclick="toggleGameRow(this)">
               <input type="checkbox" checked class="custom-checkbox">
-              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🗡️</div>
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🍄</div>
               <div class="game-info">
-                <div class="game-name">Dragon Quest V - Hand of the Heavenly Bride</div>
-                <div class="game-meta">134.2 MB • Has Save File (.SAV) • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+                <div class="game-title">New Super Mario Bros</div>
+                <div class="game-sub">33.5 MB • <span class="badge badge-green" style="font-size: 0.55rem;">Essential</span> • In <code>nds\Favorites\</code></div>
               </div>
             </div>
 
-            <!-- Game 6 -->
-            <div class="game-item selected" onclick="toggleGameItem(this, 'Legend Of Zelda - Phantom Hourglass.nds', 'Legend of Zelda - Phantom Hourglass', 'assets/cardmaker_ui_mockup.jpg')">
+            <div class="game-row selected" data-game="Legend of Zelda: Phantom Hourglass" data-filename="Legend Of Zelda - Phantom Hourglass.nds" data-essential="true" data-save="false" onclick="toggleGameRow(this)">
               <input type="checkbox" checked class="custom-checkbox">
-              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🛡️</div>
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🛡️</div>
               <div class="game-info">
-                <div class="game-name">Legend Of Zelda - Phantom Hourglass</div>
-                <div class="game-meta">67.1 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+                <div class="game-title">Legend Of Zelda - Phantom Hourglass</div>
+                <div class="game-sub">67.1 MB • <span class="badge badge-green" style="font-size: 0.55rem;">Essential</span> • In <code>nds\Favorites\</code></div>
+              </div>
+            </div>
+
+            <div class="game-row selected" data-game="Advance Wars - Days of Ruin" data-filename="Advance Wars - Days of ruin.nds" data-essential="false" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" checked class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🎖️</div>
+              <div class="game-info">
+                <div class="game-title">Advance Wars - Days of Ruin</div>
+                <div class="game-sub">67.1 MB • In <code>nds\Favorites\</code></div>
+              </div>
+            </div>
+
+            <div class="game-row selected" data-game="Castlevania - Order of Ecclesia" data-filename="Castlevania - Order of Ecclesia.nds" data-essential="true" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" checked class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🦇</div>
+              <div class="game-info">
+                <div class="game-title">Castlevania - Order of Ecclesia</div>
+                <div class="game-sub">67.1 MB • In <code>nds\Favorites\</code></div>
+              </div>
+            </div>
+
+            <div class="game-row" data-game="Dragon Quest IV" data-filename="Dragon Quest IV - Chapters of the Chosen.nds" data-essential="false" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">⚔️</div>
+              <div class="game-info">
+                <div class="game-title">Dragon Quest IV - Chapters of the Chosen</div>
+                <div class="game-sub">134.2 MB • In <code>nds\Favorites\</code></div>
+              </div>
+            </div>
+
+            <div class="game-row" data-game="Super Mario 64 DS" data-filename="0037 - Super Mario 64 DS (U).nds" data-essential="false" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">⭐</div>
+              <div class="game-info">
+                <div class="game-title">0037 - Super Mario 64 DS (U)</div>
+                <div class="game-sub">16.8 MB • Main Library</div>
+              </div>
+            </div>
+
+            <div class="game-row" data-game="Professor Layton" data-filename="2002 - Professor Layton and the Curious Village (U).nds" data-essential="false" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🎩</div>
+              <div class="game-info">
+                <div class="game-title">2002 - Professor Layton and the Curious Village (U)</div>
+                <div class="game-sub">67.1 MB • Main Library</div>
+              </div>
+            </div>
+
+            <div class="game-row" data-game="GoldenEye - Rogue Agent" data-filename="0029 - GoldenEye - Rogue Agent (U).nds" data-essential="false" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🔫</div>
+              <div class="game-info">
+                <div class="game-title">0029 - GoldenEye - Rogue Agent (U)</div>
+                <div class="game-sub">16.8 MB • Main Library</div>
+              </div>
+            </div>
+
+            <div class="game-row" data-game="Kirby - Squeak Squad" data-filename="0732 - Kirby - Squeak Squad (US).nds" data-essential="false" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">⭐</div>
+              <div class="game-info">
+                <div class="game-title">0732 - Kirby - Squeak Squad (US)</div>
+                <div class="game-sub">67.1 MB • Main Library</div>
+              </div>
+            </div>
+
+            <div class="game-row" data-game="Fire Emblem - Shadow Dragon" data-filename="Fire Emblem - Shadow Dragon (Europe).nds" data-essential="false" data-save="false" onclick="toggleGameRow(this)">
+              <input type="checkbox" class="custom-checkbox">
+              <div class="game-thumb" style="display:flex;align-items:center;justify-content:center;">🛡️</div>
+              <div class="game-info">
+                <div class="game-title">Fire Emblem - Shadow Dragon</div>
+                <div class="game-sub">67.1 MB • Main Library</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Right: Live JSON & Boxart Preview -->
+        <!-- Right: Pattern Rules & Live favorites.json preview -->
         <div>
-          <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Live Generated <code>favorites.json</code>:</div>
-          <pre style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-subtle); padding: 0.75rem; border-radius: var(--radius-sm); font-family: 'Fira Code', monospace; font-size: 0.72rem; color: #a5f3fc; height: 350px; overflow-y: auto;" id="favorites-json-preview">{
-  "platform": "nds",
-  "title": "Essential NDS Classics",
-  "games": [
-    "Chrono Trigger (Europe) (En,Fr).nds",
-    "Castlevania - Dawn of Sorrow.nds",
-    "Mario Kart DS.nds",
-    "New Super Mario Bros.nds",
-    "Dragon Quest V - Hand of the Heavenly Bride.nds",
-    "Legend Of Zelda - Phantom Hourglass.nds"
-  ],
-  "patterns": [
-    "Chrono Trigger",
-    "Dawn of Sorrow",
-    "Mario Kart DS",
-    "New Super Mario",
-    "Dragon Quest V",
-    "Phantom Hourglass"
-  ]
-}</pre>
+          <!-- Search Patterns Manager -->
+          <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.65rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+              <span style="font-weight: 700; font-size: 0.75rem; color: var(--cyan);">Search Pattern Rules:</span>
+              <span style="font-size: 0.65rem; color: var(--text-faint);">Matches substrings</span>
+            </div>
+            
+            <div style="display: flex; gap: 0.3rem;">
+              <input type="text" id="pattern-input" placeholder="e.g. 'Pokemon', 'Zelda'..." style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.72rem; font-family: 'Fira Code', monospace;">
+              <button class="btn btn-cyan" onclick="addCustomPattern()" style="padding: 0.25rem 0.55rem; font-size: 0.7rem;">+ Add</button>
+            </div>
+
+            <div class="pattern-tag-group" id="pattern-tags-container">
+              <span class="pattern-tag">Chrono Trigger <span class="pattern-tag-delete" onclick="removePatternTag(this)">×</span></span>
+              <span class="pattern-tag">Castlevania <span class="pattern-tag-delete" onclick="removePatternTag(this)">×</span></span>
+              <span class="pattern-tag">Mario Kart <span class="pattern-tag-delete" onclick="removePatternTag(this)">×</span></span>
+              <span class="pattern-tag">New Super Mario <span class="pattern-tag-delete" onclick="removePatternTag(this)">×</span></span>
+              <span class="pattern-tag">Dragon Quest <span class="pattern-tag-delete" onclick="removePatternTag(this)">×</span></span>
+              <span class="pattern-tag">Zelda <span class="pattern-tag-delete" onclick="removePatternTag(this)">×</span></span>
+            </div>
+          </div>
+
+          <!-- Live JSON Output Preview -->
+          <div>
+            <div style="font-size: 0.75rem; font-weight: 600; margin-bottom: 0.25rem; display: flex; justify-content: space-between;">
+              <span>Live Generated <code>favorites.json</code>:</span>
+              <span style="color: var(--green); font-size: 0.68rem;">✓ Auto-Synchronized</span>
+            </div>
+            <pre style="background: rgba(0,0,0,0.55); border: 1px solid var(--border-subtle); padding: 0.5rem; border-radius: var(--radius-sm); font-family: 'Fira Code', monospace; font-size: 0.65rem; color: #a5f3fc; height: 185px; overflow-y: auto;" id="favorites-json-preview"></pre>
+          </div>
         </div>
       </div>
 
       <div class="modal-footer">
-        <div style="font-size: 0.8rem; color: var(--text-muted);" id="modal-save-status">
-          Target file: <code>C:\Users\Andreas\OneDrive\Roms\nds\favorites.json</code>
+        <div style="font-size: 0.75rem; color: var(--text-muted);" id="modal-save-status">
+          Target: <code>C:\Users\Andreas\OneDrive\Roms\nds\favorites.json</code>
         </div>
-        <div style="display: flex; gap: 0.75rem;">
+        <div style="display: flex; gap: 0.5rem;">
           <button class="btn" onclick="closeFavoritesModal()">Cancel</button>
           <button class="btn btn-green" onclick="saveFavoritesModal()">💾 Save favorites.json</button>
         </div>
@@ -1773,9 +1742,9 @@
     </div>
   </div>
 
-  <!-- LIGHTBOX MODAL FOR SCREENSHOTS -->
+  <!-- LIGHTBOX -->
   <div class="modal-overlay" id="lightbox-modal" onclick="closeLightbox()">
-    <img id="lightbox-img" src="" alt="Enlarged Mockup" style="max-width: 90vw; max-height: 90vh; border-radius: 12px; border: 2px solid var(--cyan); box-shadow: 0 0 40px rgba(0, 240, 255, 0.4);">
+    <img id="lightbox-img" src="" alt="Enlarged Mockup" style="max-width: 90vw; max-height: 90vh; border-radius: 8px; border: 2px solid var(--cyan); box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);">
   </div>
 
   <script>
@@ -1786,6 +1755,7 @@
     let selectedProfileName = 'Anbernic RG DS Launcher';
     let isInstalling = false;
     let installInterval = null;
+    let currentTagFilter = 'all';
 
     function switchMainView(viewName) {
       document.querySelectorAll('.nav-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1814,7 +1784,6 @@
       elem.classList.add('selected');
       selectedDriveLetter = letter;
 
-      const formatSection = document.getElementById('format-section');
       const systemWarning = document.getElementById('system-warning');
       const fsSelectors = document.getElementById('fs-selectors');
       const formatToggle = document.getElementById('format-toggle');
@@ -1875,45 +1844,123 @@
       document.querySelectorAll('.platform-row .custom-checkbox').forEach(cb => cb.checked = checked);
     }
 
+    /* Favorites Modal Logic */
     function openFavoritesModal(platformId) {
       document.getElementById('fav-modal').classList.add('active');
+      updateFavoritesJsonPreview();
     }
 
     function closeFavoritesModal() {
       document.getElementById('fav-modal').classList.remove('active');
     }
 
-    function toggleGameItem(elem, filename, gameName, artPath) {
-      const cb = elem.querySelector('.custom-checkbox');
+    function toggleGameRow(row) {
+      const cb = row.querySelector('.custom-checkbox');
       cb.checked = !cb.checked;
       if (cb.checked) {
-        elem.classList.add('selected');
+        row.classList.add('selected');
       } else {
-        elem.classList.remove('selected');
+        row.classList.remove('selected');
       }
+      updateFavoritesJsonPreview();
     }
 
-    function selectTopClassics() {
-      document.querySelectorAll('#modal-game-list .game-item').forEach(item => {
-        item.classList.add('selected');
-        item.querySelector('.custom-checkbox').checked = true;
+    function filterGamesList() {
+      const query = document.getElementById('game-search-input').value.toLowerCase();
+      document.querySelectorAll('#modal-game-list .game-row').forEach(row => {
+        const title = row.getAttribute('data-game').toLowerCase();
+        const filename = row.getAttribute('data-filename').toLowerCase();
+        const matchText = title.includes(query) || filename.includes(query);
+        const matchTag = evaluateTagFilter(row);
+
+        row.style.display = (matchText && matchTag) ? 'flex' : 'none';
       });
     }
 
-    function toggleSelectAllModal(val) {
-      document.querySelectorAll('#modal-game-list .game-item').forEach(item => {
-        if (val) item.classList.add('selected');
-        else item.classList.remove('selected');
-        item.querySelector('.custom-checkbox').checked = val;
+    function applyTagFilter(tag, elem) {
+      currentTagFilter = tag;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      elem.classList.add('active');
+      filterGamesList();
+    }
+
+    function evaluateTagFilter(row) {
+      if (currentTagFilter === 'all') return true;
+      if (currentTagFilter === 'selected') return row.classList.contains('selected');
+      if (currentTagFilter === 'essential') return row.getAttribute('data-essential') === 'true';
+      if (currentTagFilter === 'saves') return row.getAttribute('data-save') === 'true';
+      return true;
+    }
+
+    function selectTopEssentials() {
+      document.querySelectorAll('#modal-game-list .game-row').forEach(row => {
+        if (row.getAttribute('data-essential') === 'true') {
+          row.classList.add('selected');
+          row.querySelector('.custom-checkbox').checked = true;
+        }
       });
+      updateFavoritesJsonPreview();
+    }
+
+    function toggleAllModalGames(val) {
+      document.querySelectorAll('#modal-game-list .game-row').forEach(row => {
+        if (val) row.classList.add('selected');
+        else row.classList.remove('selected');
+        row.querySelector('.custom-checkbox').checked = val;
+      });
+      updateFavoritesJsonPreview();
+    }
+
+    function addCustomPattern() {
+      const input = document.getElementById('pattern-input');
+      const val = input.value.trim();
+      if (!val) return;
+
+      const container = document.getElementById('pattern-tags-container');
+      const tag = document.createElement('span');
+      tag.className = 'pattern-tag';
+      tag.innerHTML = `${val} <span class="pattern-tag-delete" onclick="removePatternTag(this)">×</span>`;
+      container.appendChild(tag);
+      input.value = '';
+      updateFavoritesJsonPreview();
+    }
+
+    function removePatternTag(elem) {
+      elem.parentElement.remove();
+      updateFavoritesJsonPreview();
+    }
+
+    function updateFavoritesJsonPreview() {
+      const selectedGames = [];
+      document.querySelectorAll('#modal-game-list .game-row.selected').forEach(row => {
+        selectedGames.push(row.getAttribute('data-filename'));
+      });
+
+      const patterns = [];
+      document.querySelectorAll('#pattern-tags-container .pattern-tag').forEach(tag => {
+        patterns.push(tag.textContent.replace('×', '').trim());
+      });
+
+      const json = {
+        platform: "nds",
+        title: "Curated Nintendo DS Classics",
+        games: selectedGames,
+        patterns: patterns
+      };
+
+      document.getElementById('favorites-json-preview').textContent = JSON.stringify(json, null, 2);
+      document.getElementById('selected-counter').innerText = selectedGames.length;
+      document.getElementById('chip-sel-count').innerText = selectedGames.length;
+      document.getElementById('nds-fav-count-badge').innerText = selectedGames.length;
     }
 
     function saveFavoritesModal() {
+      const count = document.querySelectorAll('#modal-game-list .game-row.selected').length;
       const status = document.getElementById('modal-save-status');
-      status.innerHTML = `<span style="color: var(--green);">✓ Saved favorites.json successfully! (18 games curated)</span>`;
+      status.innerHTML = `<span style="color: var(--green);">✓ Saved favorites.json successfully (${count} games)!</span>`;
       setTimeout(() => {
         closeFavoritesModal();
-        status.innerText = `Target file: C:\\Users\\Andreas\\OneDrive\\Roms\\nds\\favorites.json`;
+        status.innerText = `Target: C:\\Users\\Andreas\\OneDrive\\Roms\\nds\\favorites.json`;
       }, 700);
     }
 
@@ -1926,7 +1973,7 @@
       document.getElementById('lightbox-modal').classList.remove('active');
     }
 
-    // Simulated QuickInstaller Execution
+    // Execution simulation
     function startSimulatedInstall() {
       if (isInstalling) return;
       isInstalling = true;
@@ -1955,36 +2002,32 @@
       log('Starting QuickInstaller pipeline on ' + selectedDriveLetter, 'info');
 
       if (isFormatting) {
-        log(`Formatting ${selectedDriveLetter} as ${selectedFs} (Volume Label: RETRO)...`, 'warn');
-        setTimeout(() => log(`Drive ${selectedDriveLetter} format verified. Cluster size: 128KB.`, 'success'), 900);
+        log(`Formatting ${selectedDriveLetter} as ${selectedFs} (Volume: RETRO)...`, 'warn');
+        setTimeout(() => log(`Drive ${selectedDriveLetter} format verified. Cluster: 128KB.`, 'success'), 800);
       }
 
       installInterval = setInterval(() => {
-        progress += 4;
+        progress += 5;
         if (progress > 100) progress = 100;
 
         bar.style.width = progress + '%';
         percentLabel.innerText = progress + '%';
 
-        if (progress === 15) {
-          phaseLabel.innerText = 'Phase: Creating Directory Hierarchy...';
+        if (progress === 20) {
+          phaseLabel.innerText = 'Creating Directory Hierarchy...';
           log(`Created base layout: ${selectedDriveLetter}\\roms\\NDS, GBA, SFC, FC, PS, MD`, 'info');
-        } else if (progress === 30) {
-          phaseLabel.innerText = 'Phase: Copying Curated NDS Favorites...';
+        } else if (progress === 40) {
+          phaseLabel.innerText = 'Copying Curated NDS Favorites...';
           fileLabel.innerText = 'Copying Chrono Trigger (Europe).nds [134.2 MB]';
           log('Copied: Chrono Trigger (Europe).nds + Matched Imgs/Chrono Trigger.png', 'success');
-        } else if (progress === 50) {
-          phaseLabel.innerText = 'Phase: Copying GBA Favorites & Saves...';
+        } else if (progress === 60) {
+          phaseLabel.innerText = 'Copying GBA Favorites & Saves...';
           fileLabel.innerText = 'Copying Pokemon - Emerald Version.gba + Savefile';
           log('Copied: Pokemon - Emerald Version.gba and synced to GBA/Imgs/', 'success');
-        } else if (progress === 70) {
-          phaseLabel.innerText = 'Phase: Syncing Libretro Boxarts...';
-          fileLabel.innerText = 'Downloading Castlevania - Aria of Sorrow.png from Libretro CDN';
-          log('Scraped Libretro Boxart: Castlevania - Aria of Sorrow (USA).png', 'success');
-        } else if (progress === 90) {
-          phaseLabel.innerText = 'Phase: Finalizing Metadata & Volume Cache...';
-          fileLabel.innerText = 'Writing favorites.json manifest and verifying filesystem...';
-          log('Verified 316 ROMs, 316 Boxarts, 14 Savefiles.', 'info');
+        } else if (progress === 80) {
+          phaseLabel.innerText = 'Syncing Libretro Boxarts...';
+          fileLabel.innerText = 'Downloading Castlevania - Dawn of Sorrow.png from Libretro CDN';
+          log('Verified Libretro Boxart: Castlevania - Dawn of Sorrow.png', 'success');
         } else if (progress >= 100) {
           clearInterval(installInterval);
           isInstalling = false;
@@ -1995,9 +2038,9 @@
           document.getElementById('cancel-btn').style.display = 'none';
           document.getElementById('start-btn').style.display = 'inline-flex';
           document.getElementById('start-btn').innerText = '✓ Completed (Run Again)';
-          log('🎉 QuickInstaller successfully completed in 4.8s! Safe to eject SD Card.', 'success');
+          log('🎉 QuickInstaller successfully completed in 4.2s! Safe to eject SD Card.', 'success');
         }
-      }, 180);
+      }, 150);
     }
 
     function cancelSimulatedInstall() {
@@ -2009,13 +2052,10 @@
       document.getElementById('install-status-badge').className = 'badge badge-red';
       document.getElementById('cancel-btn').style.display = 'none';
       document.getElementById('start-btn').style.display = 'inline-flex';
-      const terminal = document.getElementById('terminal-body');
-      const time = new Date().toTimeString().split(' ')[0];
-      const line = document.createElement('div');
-      line.className = 'log-line';
-      line.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-warn">[CANCEL]</span> Operation cancelled.`;
-      terminal.appendChild(line);
     }
+
+    // Initialize preview on load
+    updateFavoritesJsonPreview();
   </script>
 </body>
 </html>

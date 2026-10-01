@@ -73,7 +73,11 @@ pub struct RetroCardMakerApp {
     // Modal: Favorites Editor
     pub editing_platform_idx: Option<usize>,
     pub editing_selected_games: HashSet<String>,
+    pub editing_custom_patterns: Vec<String>,
+    pub editing_search_query: String,
+    pub editing_show_selected_only: bool,
     pub new_favorite_pattern: String,
+    pub favorites_save_notification: Option<String>,
 }
 
 impl RetroCardMakerApp {
@@ -122,7 +126,11 @@ impl RetroCardMakerApp {
 
             editing_platform_idx: None,
             editing_selected_games: HashSet::new(),
+            editing_custom_patterns: Vec::new(),
+            editing_search_query: String::new(),
+            editing_show_selected_only: false,
             new_favorite_pattern: String::new(),
+            favorites_save_notification: None,
         };
 
         // If removable drive found, auto-select it
@@ -160,9 +168,9 @@ impl RetroCardMakerApp {
                     // Check for favorites.json
                     p_state.favorites = load_favorites(&candidate);
 
-                    // Scan files
+                    // Scan files (recursively scanning up to depth 3 so nested roms/ folders are detected)
                     for entry in WalkDir::new(&candidate)
-                        .max_depth(2)
+                        .max_depth(3)
                         .into_iter()
                         .filter_map(|e| e.ok())
                     {
@@ -182,6 +190,7 @@ impl RetroCardMakerApp {
                         }
                     }
                     p_state.rom_files.sort();
+                    p_state.rom_files.dedup();
                     break;
                 }
             }
@@ -301,39 +310,40 @@ impl eframe::App for RetroCardMakerApp {
             ui.ctx().request_repaint();
         }
 
-        // Top Header
+        // Top Header - Sleek Compact Bar
         ui.vertical(|ui| {
-            ui.add_space(6.0);
+            ui.add_space(4.0);
             ui.horizontal(|ui| {
-                ui.heading(
+                ui.label(
                     RichText::new("🎮 RETRO CARDMAKER")
-                        .size(24.0)
-                        .color(Color32::from_rgb(90, 200, 250))
+                        .size(15.0)
+                        .color(Color32::from_rgb(0, 240, 255))
                         .strong(),
                 );
                 ui.label(
                     RichText::new("v0.1.0")
-                        .size(13.0)
-                        .color(Color32::LIGHT_GRAY),
+                        .size(11.0)
+                        .color(Color32::from_gray(140)),
                 );
                 ui.separator();
                 ui.label(
-                    RichText::new("SD-Card Formatter, Curated ROM Manager & Boxart Scraper")
-                        .color(Color32::GRAY),
+                    RichText::new("SD-Card Formatter • Curated ROMs • Libretro Artwork Scraper")
+                        .size(11.5)
+                        .color(Color32::from_gray(160)),
                 );
             });
-            ui.add_space(4.0);
+            ui.add_space(2.0);
             ui.separator();
         });
 
-        // Tab Navigation Bar
-        ui.add_space(6.0);
+        // Tab Navigation Bar - Compact Desktop Tabs
+        ui.add_space(4.0);
         ui.horizontal(|ui| {
             let tabs = [
                 (ActiveTab::SdCard, "1. 💾 SD Card & Format"),
                 (ActiveTab::Profile, "2. 🕹️ Device Profile"),
-                (ActiveTab::Platforms, "3. 📂 ROMs & Favorites"),
-                (ActiveTab::Artwork, "4. 🖼️ Boxart Scraping"),
+                (ActiveTab::Platforms, "3. 📂 ROMs & Curate"),
+                (ActiveTab::Artwork, "4. 🖼️ Boxart Pipeline"),
                 (ActiveTab::Install, "5. 🚀 QuickInstall"),
             ];
 
@@ -342,12 +352,17 @@ impl eframe::App for RetroCardMakerApp {
                 let btn = if is_selected {
                     egui::Button::new(
                         RichText::new(label)
+                            .size(12.0)
                             .strong()
-                            .color(Color32::from_rgb(255, 255, 255)),
+                            .color(Color32::WHITE),
                     )
-                    .fill(Color32::from_rgb(45, 110, 210))
+                    .fill(Color32::from_rgb(30, 95, 190))
                 } else {
-                    egui::Button::new(RichText::new(label))
+                    egui::Button::new(
+                        RichText::new(label)
+                            .size(12.0)
+                            .color(Color32::from_gray(200)),
+                    )
                 };
 
                 if ui.add(btn).clicked() {
@@ -355,14 +370,14 @@ impl eframe::App for RetroCardMakerApp {
                 }
             }
         });
-        ui.add_space(6.0);
+        ui.add_space(4.0);
         ui.separator();
 
         // Main Tab Content
         ScrollArea::vertical()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                ui.add_space(10.0);
+                ui.add_space(6.0);
                 match self.active_tab {
                     ActiveTab::SdCard => self.render_sd_card_tab(ui),
                     ActiveTab::Profile => self.render_profile_tab(ui),
@@ -379,65 +394,66 @@ impl eframe::App for RetroCardMakerApp {
 
 impl RetroCardMakerApp {
     fn render_sd_card_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Step 1: Select SD Card & Formatting Options");
-        ui.add_space(4.0);
-        ui.label("Choose your target SD card drive. The tool detects removable drives and protects system partitions.");
+        ui.label(RichText::new("Step 1: Target SD Card & Formatting").size(13.5).strong());
+        ui.label(RichText::new("Choose your target SD card drive. Removable drives are flagged automatically; system partitions are protected.").size(11.5).color(Color32::from_gray(160)));
 
-        ui.add_space(10.0);
+        ui.add_space(6.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Target Drive:").strong());
+                ui.label(RichText::new("Target Drive:").size(12.0).strong());
                 if self.drives.is_empty() {
-                    ui.label(RichText::new("No drives found!").color(Color32::RED));
+                    ui.label(RichText::new("No drives found!").size(12.0).color(Color32::RED));
                 } else {
                     egui::ComboBox::from_id_salt("drive_combo")
-                        .width(420.0)
+                        .width(440.0)
                         .selected_text(
-                            self.drives
-                                .get(self.selected_drive_idx)
-                                .map(|d| d.display_summary())
-                                .unwrap_or_else(|| "Select Drive".to_string()),
+                            RichText::new(
+                                self.drives
+                                    .get(self.selected_drive_idx)
+                                    .map(|d| d.display_summary())
+                                    .unwrap_or_else(|| "Select Drive".to_string()),
+                            ).size(11.5),
                         )
                         .show_ui(ui, |ui| {
                             for (idx, drive) in self.drives.iter().enumerate() {
                                 ui.selectable_value(
                                     &mut self.selected_drive_idx,
                                     idx,
-                                    drive.display_summary(),
+                                    RichText::new(drive.display_summary()).size(11.5),
                                 );
                             }
                         });
                 }
 
-                if ui.button("🔄 Refresh Drives").clicked() {
+                if ui.button(RichText::new("🔄 Refresh").size(11.5)).clicked() {
                     self.refresh_drives();
                 }
             });
 
             if let Some(drive) = self.drives.get(self.selected_drive_idx) {
-                ui.add_space(8.0);
+                ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.label(format!("Drive: {}", drive.letter));
+                    ui.label(RichText::new(format!("Drive: {}", drive.letter)).size(11.5));
                     ui.separator();
-                    ui.label(format!("Label: {}", if drive.label.is_empty() { "None" } else { &drive.label }));
+                    ui.label(RichText::new(format!("Label: {}", if drive.label.is_empty() { "None" } else { &drive.label })).size(11.5));
                     ui.separator();
-                    ui.label(format!("File System: {}", drive.file_system));
+                    ui.label(RichText::new(format!("File System: {}", drive.file_system)).size(11.5));
                     ui.separator();
-                    ui.label(format!("Free: {} / Total: {}", drive.free_gb_str(), drive.total_gb_str()));
+                    ui.label(RichText::new(format!("Free: {} / Total: {}", drive.free_gb_str(), drive.total_gb_str())).size(11.5));
                 });
 
                 if drive.is_system {
-                    ui.add_space(6.0);
+                    ui.add_space(4.0);
                     ui.colored_label(
                         Color32::LIGHT_RED,
-                        "⚠️ PROTECTED SYSTEM DRIVE (C:): Formatting is strictly disabled for system drives.",
+                        "🛡️ PROTECTED SYSTEM DRIVE (C:): Formatting is strictly locked to prevent accidental data loss.",
                     );
                 }
             }
         });
 
-        ui.add_space(15.0);
-        ui.heading("Formatting & Destination");
+        ui.add_space(8.0);
+        ui.label(RichText::new("Formatting & Destination").size(13.0).strong());
         egui::Frame::group(ui.style()).show(ui, |ui| {
             let is_system = self
                 .drives
@@ -446,131 +462,132 @@ impl RetroCardMakerApp {
                 .unwrap_or(false);
 
             ui.add_enabled_ui(!is_system, |ui| {
-                ui.checkbox(&mut self.do_format, RichText::new("Format SD Card before installing").strong());
+                ui.checkbox(&mut self.do_format, RichText::new("Format SD Card before installing").size(12.0).strong());
                 if self.do_format {
                     ui.indent("format_options", |ui| {
-                        ui.add_space(4.0);
+                        ui.add_space(2.0);
                         ui.horizontal(|ui| {
-                            ui.label("File System:");
+                            ui.label(RichText::new("File System:").size(11.5));
                             ui.radio_value(
                                 &mut self.format_fs,
                                 FormatFileSystem::ExFat,
-                                "exFAT (Recommended for modern handhelds & 64GB+ cards)",
+                                RichText::new("exFAT (Modern handhelds & 64GB+ cards)").size(11.5),
                             );
                             ui.radio_value(
                                 &mut self.format_fs,
                                 FormatFileSystem::Fat32,
-                                "FAT32 (Required for <=32GB cards & older handhelds/GarlicOS)",
+                                RichText::new("FAT32 (Legacy devices / Miyoo / GarlicOS)").size(11.5),
                             );
                         });
 
-                        ui.add_space(4.0);
+                        ui.add_space(2.0);
                         ui.horizontal(|ui| {
-                            ui.label("Volume Label:");
+                            ui.label(RichText::new("Volume Label:").size(11.5));
                             ui.text_edit_singleline(&mut self.volume_label);
                         });
 
-                        ui.add_space(6.0);
+                        ui.add_space(4.0);
                         ui.colored_label(
                             Color32::from_rgb(255, 170, 0),
-                            "⚠️ WARNING: Quick formatting will permanently erase all data on the selected drive!",
+                            "⚠️ WARNING: Formatting will permanently erase all data on the selected drive!",
                         );
                         ui.checkbox(
                             &mut self.format_confirmed,
-                            "I confirm that I want to format this drive and lose any existing files.",
+                            RichText::new("I confirm that I want to format this drive.").size(11.5),
                         );
                     });
                 }
             });
 
-            ui.add_space(10.0);
+            ui.add_space(6.0);
             ui.horizontal(|ui| {
-                ui.label(RichText::new("SD Card Subfolder:").strong());
+                ui.label(RichText::new("SD Card Subfolder:").size(12.0).strong());
                 ui.text_edit_singleline(&mut self.subfolder_name);
-                ui.label("(Leave blank for SD card root, or e.g. 'roms' or 'Roms')");
+                ui.label(RichText::new("(e.g. 'roms', 'Roms', or leave blank for root)").size(11.0).color(Color32::GRAY));
             });
         });
 
-        ui.add_space(15.0);
+        ui.add_space(8.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.label(RichText::new("💡 Handheld SD Guidance:").strong().color(Color32::from_rgb(100, 200, 255)));
-            ui.label("• Anbernic RG DS Launcher / RG Cube / Odin: Format as exFAT; ROMs inside 'roms/'.");
-            ui.label("• Anbernic RG35XX (GarlicOS) / Miyoo Mini (OnionOS): Best with FAT32; ROMs inside 'Roms/'.");
-            ui.label("• Steam Deck / ES-DE: Standard exFAT; ROMs inside 'roms/'.");
+            ui.label(RichText::new("💡 Quick Guidance:").size(12.0).strong().color(Color32::from_rgb(100, 200, 255)));
+            ui.label(RichText::new("• Anbernic RG DS Launcher / RG Cube / Odin: exFAT; ROMs in 'roms/'.").size(11.0).color(Color32::from_gray(180)));
+            ui.label(RichText::new("• Miyoo Mini (OnionOS) / RG35XX (GarlicOS): FAT32; ROMs in 'Roms/'.").size(11.0).color(Color32::from_gray(180)));
+            ui.label(RichText::new("• Steam Deck / ES-DE: Standard exFAT; ROMs in 'roms/'.").size(11.0).color(Color32::from_gray(180)));
         });
     }
 
     fn render_profile_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Step 2: Select Device & Launcher Profile");
-        ui.label("Choose your target emulation frontend or handheld device. Folder structures and boxart formats will adjust automatically.");
-        ui.add_space(10.0);
+        ui.label(RichText::new("Step 2: Device & Launcher Profile").size(13.5).strong());
+        ui.label(RichText::new("Select your emulation frontend. Folder codes and artwork paths adjust automatically.").size(11.5).color(Color32::from_gray(160)));
+        ui.add_space(6.0);
 
         for profile in PROFILES {
             let is_selected = self.selected_profile_id == profile.id;
             egui::Frame::group(ui.style())
                 .stroke(if is_selected {
-                    Stroke::new(2.0, Color32::from_rgb(70, 150, 255))
+                    Stroke::new(1.5, Color32::from_rgb(0, 240, 255))
                 } else {
-                    Stroke::new(1.0, Color32::from_gray(60))
+                    Stroke::new(1.0, Color32::from_gray(55))
                 })
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         if ui
-                            .radio(is_selected, RichText::new(profile.name).strong().size(15.0))
+                            .radio(is_selected, RichText::new(profile.name).strong().size(12.5))
                             .clicked()
                         {
                             self.selected_profile_id = profile.id;
                             self.subfolder_name = profile.recommended_sd_subfolder.to_string();
                         }
                     });
-                    ui.label(RichText::new(profile.description).color(Color32::LIGHT_GRAY));
-                    ui.add_space(3.0);
+                    ui.label(RichText::new(profile.description).size(11.0).color(Color32::from_gray(170)));
+                    ui.add_space(2.0);
                     ui.label(
-                        RichText::new(format!("Folder Layout: {}", profile.guidance))
-                            .color(Color32::from_rgb(130, 210, 130)),
+                        RichText::new(format!("Pattern: {}", profile.guidance))
+                            .size(10.5)
+                            .color(Color32::from_rgb(100, 220, 160)),
                     );
                 });
-            ui.add_space(4.0);
+            ui.add_space(2.0);
         }
     }
 
     fn render_platforms_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Step 3: Source ROMs & Curated Favorites");
-        ui.label("Select the root directory containing your ROM folders. Retro CardMaker will automatically match platforms, count games, and allow selecting Curated Favorites.");
-        ui.add_space(10.0);
+        ui.label(RichText::new("Step 3: Source ROMs & Curated Favorites").size(13.5).strong());
+        ui.label(RichText::new("Select your ROM repository root. Retro CardMaker scans for platforms, detects existing Favorites/Imgs folders, and enables curated shortlists.").size(11.5).color(Color32::from_gray(160)));
+        ui.add_space(6.0);
 
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Source Directory:").strong());
+                ui.label(RichText::new("Source Directory:").size(12.0).strong());
                 ui.text_edit_singleline(&mut self.source_path);
-                if ui.button("📂 Browse...").clicked() {
+                if ui.button(RichText::new("📂 Browse...").size(11.5)).clicked() {
                     if let Some(folder) = rfd::FileDialog::new().pick_folder() {
                         self.source_path = folder.to_string_lossy().to_string();
                         self.scan_source_folder();
                     }
                 }
-                if ui.button("🔍 Scan Folder").clicked() {
+                if ui.button(RichText::new("🔍 Scan Folder").size(11.5)).clicked() {
                     self.scan_source_folder();
                 }
             });
         });
 
-        ui.add_space(10.0);
+        ui.add_space(6.0);
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Platforms Registry:").strong());
-            if ui.button("Select All Platforms").clicked() {
+            ui.label(RichText::new("Platforms Registry:").size(12.5).strong());
+            if ui.button(RichText::new("Select All").size(11.0)).clicked() {
                 for p in &mut self.platform_states {
                     p.enabled = true;
                 }
             }
-            if ui.button("Deselect All").clicked() {
+            if ui.button(RichText::new("Deselect All").size(11.0)).clicked() {
                 for p in &mut self.platform_states {
                     p.enabled = false;
                 }
             }
         });
 
-        ui.add_space(8.0);
+        ui.add_space(4.0);
         for idx in 0..self.platform_states.len() {
             let p_state = &mut self.platform_states[idx];
             let is_found = p_state.found_dir.is_some();
@@ -582,64 +599,79 @@ impl RetroCardMakerApp {
                     ui.label(
                         RichText::new(p_state.platform.name)
                             .strong()
-                            .size(15.0)
+                            .size(12.5)
                             .color(if is_found {
                                 Color32::WHITE
                             } else {
-                                Color32::GRAY
+                                Color32::from_gray(130)
                             }),
                     );
 
                     if is_found {
                         ui.label(
-                            RichText::new(format!("({} ROMs found)", rom_count))
-                                .color(Color32::from_rgb(100, 230, 100)),
+                            RichText::new(format!("({} ROMs)", rom_count))
+                                .size(11.0)
+                                .color(Color32::from_rgb(80, 230, 120)),
                         );
                     } else {
-                        ui.label(RichText::new("(Folder not found)").color(Color32::DARK_GRAY));
+                        ui.label(RichText::new("(Not found)").size(11.0).color(Color32::from_gray(110)));
                     }
                 });
 
                 if is_found {
                     ui.indent("platform_details", |ui| {
                         ui.horizontal(|ui| {
-                            ui.label("Copy Mode:");
-                            ui.radio_value(&mut p_state.mode, CopyMode::AllRoms, "Full ROM List");
+                            ui.label(RichText::new("Mode:").size(11.0));
+                            ui.radio_value(&mut p_state.mode, CopyMode::AllRoms, RichText::new("All ROMs").size(11.0));
                             ui.radio_value(
                                 &mut p_state.mode,
                                 CopyMode::FavoritesOnly,
-                                "Curated Only (favorites.json)",
+                                RichText::new("Curated Only").size(11.0),
                             );
 
                             ui.separator();
                             if let Some(ref favs) = p_state.favorites {
                                 ui.label(
                                     RichText::new(format!(
-                                        "favorites.json: {} entries",
+                                        "favorites.json: {} games",
                                         favs.games.len() + favs.patterns.len()
                                     ))
-                                    .color(Color32::from_rgb(100, 200, 255)),
+                                    .size(11.0)
+                                    .color(Color32::from_rgb(0, 220, 255)),
                                 );
                             } else {
                                 ui.label(
-                                    RichText::new("favorites.json: Missing")
-                                        .color(Color32::from_rgb(255, 180, 80)),
+                                    RichText::new("favorites.json: None")
+                                        .size(11.0)
+                                        .color(Color32::from_rgb(255, 170, 70)),
                                 );
                             }
 
-                            if ui.button("⭐ Edit / Generate favorites.json").clicked() {
+                            if ui.button(RichText::new("⭐ Curate / Edit favorites.json").size(11.0).strong()).clicked() {
                                 self.editing_platform_idx = Some(idx);
                                 self.editing_selected_games.clear();
-                                // Pre-fill with current favorites or default recommendations
+                                self.editing_custom_patterns.clear();
+                                self.editing_search_query.clear();
+                                self.editing_show_selected_only = false;
+                                self.favorites_save_notification = None;
+
                                 if let Some(ref favs) = p_state.favorites {
                                     for g in &favs.games {
                                         self.editing_selected_games.insert(g.clone());
                                     }
+                                    for pat in &favs.patterns {
+                                        if !self.editing_custom_patterns.contains(pat) {
+                                            self.editing_custom_patterns.push(pat.clone());
+                                        }
+                                    }
                                 } else {
-                                    // Seed with default top classics
+                                    // Pre-seed with top classics
                                     let default_favs = FavoritesList::from_default_platform(&p_state.platform);
                                     for g in &default_favs.games {
                                         self.editing_selected_games.insert(g.clone());
+                                    }
+                                    for pat in &default_favs.patterns {
+                                        self.editing_custom_patterns.push(pat.clone());
                                     }
                                 }
                             }
@@ -647,82 +679,79 @@ impl RetroCardMakerApp {
                     });
                 }
             });
-            ui.add_space(4.0);
+            ui.add_space(2.0);
         }
     }
 
     fn render_artwork_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Step 4: Boxart & Artwork Scraping");
-        ui.label("Automatically fetch cover boxarts and title screens from the Libretro Thumbnails database and name them according to your launcher profile.");
-        ui.add_space(10.0);
+        ui.label(RichText::new("Step 4: Boxart Pipeline & Media Scraping").size(13.5).strong());
+        ui.label(RichText::new("Sync local boxarts from Imgs/ or automatically download official covers from the Libretro Thumbnails CDN.").size(11.5).color(Color32::from_gray(160)));
+        ui.add_space(6.0);
 
         egui::Frame::group(ui.style()).show(ui, |ui| {
             ui.checkbox(
                 &mut self.download_art,
-                RichText::new("Enable Boxart Downloader during installation")
+                RichText::new("Enable Boxart Syncing / Downloader")
                     .strong()
-                    .size(15.0),
+                    .size(12.5),
             );
-            ui.add_space(6.0);
-            ui.label("• Source: Libretro Thumbnails GitHub Raw CDN (Official, high-res PNG, free, no API keys or accounts required).");
-            ui.label("• Smart matching: Strips region tags and normalizes illegal characters according to Libretro rules.");
-            ui.label("• Preserves bandwidth: Skips any boxart that is already present on the destination card.");
+            ui.add_space(4.0);
+            ui.label(RichText::new("• Prioritizes local images already present in your Imgs/ or _retroarch_thumbnails/ folders.").size(11.0));
+            ui.label(RichText::new("• Downloads missing boxarts from Libretro Thumbnails CDN (Free, official, no API keys).").size(11.0));
+            ui.label(RichText::new("• Normalizes characters and strips tags to maximize match rates.").size(11.0));
         });
 
-        ui.add_space(10.0);
+        ui.add_space(8.0);
         let profile = LauncherProfile::get_by_id(self.selected_profile_id);
         egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.label(RichText::new("Current Profile Boxart Pattern:").strong().color(Color32::from_rgb(120, 210, 255)));
-            ui.label(format!("Frontend: {}", profile.name));
-            ui.label(format!("Target Art Path Layout: {}", profile.guidance));
-            ui.add_space(4.0);
-            ui.label("Example:");
-            let dummy_platform = find_platform_by_id("gba").unwrap();
+            ui.label(RichText::new("Target Pattern for Current Profile:").size(12.0).strong().color(Color32::from_rgb(0, 220, 255)));
+            ui.label(RichText::new(format!("Frontend: {}", profile.name)).size(11.5));
+            let dummy_platform = find_platform_by_id("nds").unwrap();
             let dummy_dest = Path::new("E:\\roms");
-            let art_example = profile.get_art_destination(dummy_dest, dummy_platform, "Pokemon - Emerald Version (USA)");
+            let art_example = profile.get_art_destination(dummy_dest, dummy_platform, "Chrono Trigger");
             ui.code(format!("{}", art_example.display()));
         });
     }
 
     fn render_install_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Step 5: Review & Run QuickInstaller");
-        ui.add_space(6.0);
+        ui.label(RichText::new("Step 5: Review & Run QuickInstaller").size(13.5).strong());
+        ui.add_space(4.0);
 
         // Summary Card
         egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.label(RichText::new("Installation Configuration Summary:").strong());
-            ui.add_space(4.0);
+            ui.label(RichText::new("Configuration Summary:").size(12.0).strong());
+            ui.add_space(2.0);
 
             if let Some(drive) = self.drives.get(self.selected_drive_idx) {
-                ui.label(format!("• Target SD Card: {} ({})", drive.letter, drive.display_summary()));
+                ui.label(RichText::new(format!("• Target SD Card: {} ({})", drive.letter, drive.display_summary())).size(11.0));
             }
 
-            ui.label(format!(
+            ui.label(RichText::new(format!(
                 "• Formatting: {}",
                 if self.do_format {
                     format!("Format as {} (Label: '{}')", self.format_fs.as_str(), self.volume_label)
                 } else {
                     "Skip formatting (keep existing files)".to_string()
                 }
-            ));
+            )).size(11.0));
 
             let profile = LauncherProfile::get_by_id(self.selected_profile_id);
-            ui.label(format!("• Launcher Profile: {}", profile.name));
-            ui.label(format!("• Target Folder: {}/{}", self.drives.get(self.selected_drive_idx).map(|d| d.letter.as_str()).unwrap_or("?"), self.subfolder_name));
-            ui.label(format!("• Download Boxarts: {}", if self.download_art { "Yes" } else { "No" }));
+            ui.label(RichText::new(format!("• Launcher Profile: {}", profile.name)).size(11.0));
+            ui.label(RichText::new(format!("• Target Folder: {}/{}", self.drives.get(self.selected_drive_idx).map(|d| d.letter.as_str()).unwrap_or("?"), self.subfolder_name)).size(11.0));
+            ui.label(RichText::new(format!("• Boxart Sync: {}", if self.download_art { "Enabled" } else { "Disabled" })).size(11.0));
 
             let active_platforms: Vec<_> = self.platform_states.iter().filter(|p| p.enabled && p.found_dir.is_some()).collect();
-            ui.label(format!("• Platforms to Process ({}):", active_platforms.len()));
+            ui.label(RichText::new(format!("• Selected Platforms ({}):", active_platforms.len())).size(11.0));
             for p in &active_platforms {
                 let mode_str = match p.mode {
                     CopyMode::AllRoms => format!("All {} ROMs", p.rom_files.len()),
                     CopyMode::FavoritesOnly => "Curated Favorites Only".to_string(),
                 };
-                ui.label(format!("    - {}: {}", p.platform.name, mode_str));
+                ui.label(RichText::new(format!("    - {}: {}", p.platform.name, mode_str)).size(10.5));
             }
         });
 
-        ui.add_space(12.0);
+        ui.add_space(8.0);
 
         // Start / Cancel Controls
         ui.horizontal(|ui| {
@@ -733,11 +762,11 @@ impl RetroCardMakerApp {
 
                 let start_btn = egui::Button::new(
                     RichText::new("🚀 Start QuickInstaller")
-                        .size(16.0)
+                        .size(13.5)
                         .strong()
                         .color(Color32::WHITE),
                 )
-                .fill(Color32::from_rgb(30, 160, 60));
+                .fill(Color32::from_rgb(20, 140, 50));
 
                 if ui.add_enabled(can_start, start_btn).clicked() {
                     self.start_install();
@@ -745,19 +774,19 @@ impl RetroCardMakerApp {
 
                 if !can_start {
                     if self.do_format && !self.format_confirmed {
-                        ui.colored_label(Color32::from_rgb(255, 180, 80), "Please confirm format checkbox in Step 1.");
+                        ui.colored_label(Color32::from_rgb(255, 170, 70), "Please confirm format checkbox in Step 1.");
                     } else {
-                        ui.colored_label(Color32::from_rgb(255, 180, 80), "Ensure SD card and ROM source are selected.");
+                        ui.colored_label(Color32::from_rgb(255, 170, 70), "Ensure SD card and ROM source are selected.");
                     }
                 }
             } else {
                 let cancel_btn = egui::Button::new(
-                    RichText::new("🛑 Cancel QuickInstaller")
-                        .size(15.0)
+                    RichText::new("🛑 Cancel")
+                        .size(13.0)
                         .strong()
                         .color(Color32::WHITE),
                 )
-                .fill(Color32::from_rgb(200, 50, 50));
+                .fill(Color32::from_rgb(180, 40, 40));
 
                 if ui.add(cancel_btn).clicked() {
                     self.cancel_flag.store(true, Ordering::Relaxed);
@@ -767,10 +796,10 @@ impl RetroCardMakerApp {
         });
 
         // Progress Section
-        ui.add_space(10.0);
+        ui.add_space(6.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.label(RichText::new(format!("Current Phase: {}", self.current_phase)).strong());
-            ui.add_space(4.0);
+            ui.label(RichText::new(format!("Status: {}", self.current_phase)).size(11.5).strong());
+            ui.add_space(2.0);
 
             let progress_fraction = if self.progress_total > 0 {
                 self.progress_current as f32 / self.progress_total as f32
@@ -785,24 +814,24 @@ impl RetroCardMakerApp {
             );
 
             if !self.current_item.is_empty() {
-                ui.label(format!("Processing ({}/{}): {}", self.progress_current, self.progress_total, self.current_item));
+                ui.label(RichText::new(format!("Item ({}/{}): {}", self.progress_current, self.progress_total, self.current_item)).size(10.5));
             }
         });
 
         // Activity Log Console
-        ui.add_space(8.0);
-        ui.label(RichText::new("Live Activity Log:").strong());
+        ui.add_space(6.0);
+        ui.label(RichText::new("Live Console:").size(11.5).strong());
         egui::Frame::dark_canvas(ui.style()).show(ui, |ui| {
             ScrollArea::vertical()
-                .max_height(220.0)
+                .max_height(180.0)
                 .stick_to_bottom(true)
                 .show(ui, |ui| {
                     for line in &self.logs {
                         ui.label(
                             RichText::new(line)
                                 .monospace()
-                                .size(11.0)
-                                .color(Color32::from_rgb(200, 225, 255)),
+                                .size(10.5)
+                                .color(Color32::from_rgb(190, 220, 255)),
                         );
                     }
                 });
@@ -810,11 +839,11 @@ impl RetroCardMakerApp {
 
         // Final result alert
         if let Some(ref summary) = self.install_summary {
-            ui.add_space(8.0);
+            ui.add_space(6.0);
             ui.colored_label(
                 Color32::from_rgb(80, 240, 80),
                 format!(
-                    "🎉 Complete! Copied {} ROMs, downloaded {} boxarts ({:.1} MB).",
+                    "🎉 Complete! Copied {} ROMs, synced {} boxarts ({:.1} MB).",
                     summary.total_roms_copied,
                     summary.total_art_downloaded,
                     summary.total_bytes_copied as f64 / (1024.0 * 1024.0)
@@ -823,7 +852,7 @@ impl RetroCardMakerApp {
         }
 
         if let Some(ref err) = self.install_error {
-            ui.add_space(8.0);
+            ui.add_space(6.0);
             ui.colored_label(Color32::from_rgb(255, 90, 90), format!("❌ Error: {}", err));
         }
     }
@@ -841,91 +870,177 @@ impl RetroCardMakerApp {
         egui::Window::new(format!("⭐ Curate Favorites: {}", p_name))
             .collapsible(false)
             .resizable(true)
-            .default_size(Vec2::new(600.0, 500.0))
+            .default_size(Vec2::new(680.0, 520.0))
             .show(ui.ctx(), |ui| {
-                ui.label("Select the games you want to include in this platform's favorites.json list.");
-                ui.add_space(6.0);
+                ui.label(RichText::new("Easily select what is saved into favorites.json. Search, toggle items, or add keyword rules.").size(11.5).color(Color32::from_gray(170)));
+                ui.add_space(4.0);
 
+                // Top Toolbar: Search + Quick Bulk Actions
                 ui.horizontal(|ui| {
-                    if ui.button("Select Recommended Top Classics").clicked() {
+                    ui.label(RichText::new("Search:").size(11.5));
+                    ui.text_edit_singleline(&mut self.editing_search_query);
+
+                    if ui.button(RichText::new("⭐ Top Essentials").size(11.0)).clicked() {
                         let top = FavoritesList::from_default_platform(&p_state.platform);
                         for item in top.games {
                             self.editing_selected_games.insert(item);
                         }
                     }
-                    if ui.button("Select All Discovered").clicked() {
+                    if ui.button(RichText::new("Select All Filtered").size(11.0)).clicked() {
                         for rom in &p_state.rom_files {
-                            self.editing_selected_games.insert(rom.clone());
+                            if self.editing_search_query.is_empty() || rom.to_lowercase().contains(&self.editing_search_query.to_lowercase()) {
+                                self.editing_selected_games.insert(rom.clone());
+                            }
                         }
                     }
-                    if ui.button("Clear Selection").clicked() {
+                    if ui.button(RichText::new("Clear All").size(11.0)).clicked() {
                         self.editing_selected_games.clear();
                     }
                 });
 
-                ui.add_space(6.0);
-                ui.separator();
-                ui.label(RichText::new("Add Custom Game / Search Pattern:").strong());
+                ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut self.new_favorite_pattern);
-                    if ui.button("➕ Add Pattern").clicked() && !self.new_favorite_pattern.trim().is_empty() {
-                        self.editing_selected_games.insert(self.new_favorite_pattern.trim().to_string());
-                        self.new_favorite_pattern.clear();
-                    }
+                    ui.checkbox(
+                        &mut self.editing_show_selected_only,
+                        RichText::new(format!("Show Selected Only ({})", self.editing_selected_games.len())).size(11.0),
+                    );
+                    ui.separator();
+                    ui.label(RichText::new(format!("Total ROMs in folder: {}", p_state.rom_files.len())).size(11.0).color(Color32::from_gray(150)));
                 });
 
-                ui.add_space(6.0);
+                ui.add_space(4.0);
                 ui.separator();
-                ui.label(RichText::new(format!("Discovered ROM Files ({}):", p_state.rom_files.len())).strong());
 
-                ScrollArea::vertical().max_height(260.0).show(ui, |ui| {
-                    if p_state.rom_files.is_empty() {
-                        ui.label("No ROM files discovered in this platform directory yet.");
-                    } else {
-                        for rom in &p_state.rom_files {
-                            let mut is_checked = self.editing_selected_games.contains(rom);
-                            if ui.checkbox(&mut is_checked, rom).changed() {
-                                if is_checked {
+                // Game Items List
+                ScrollArea::vertical().max_height(240.0).show(ui, |ui| {
+                    let search_lower = self.editing_search_query.to_lowercase();
+                    let top_list = p_state.platform.default_favorites;
+
+                    let mut displayed_count = 0;
+                    for rom in &p_state.rom_files {
+                        let is_selected = self.editing_selected_games.contains(rom);
+
+                        // Filters
+                        if self.editing_show_selected_only && !is_selected {
+                            continue;
+                        }
+                        if !search_lower.is_empty() && !rom.to_lowercase().contains(&search_lower) {
+                            continue;
+                        }
+
+                        displayed_count += 1;
+                        let is_essential = top_list.iter().any(|&c| rom.to_lowercase().contains(&c.to_lowercase()));
+
+                        ui.horizontal(|ui| {
+                            let mut checked = is_selected;
+                            if ui.checkbox(&mut checked, "").changed() {
+                                if checked {
                                     self.editing_selected_games.insert(rom.clone());
                                 } else {
                                     self.editing_selected_games.remove(rom);
                                 }
                             }
-                        }
+
+                            ui.label(RichText::new(rom).size(11.5).color(if is_selected { Color32::WHITE } else { Color32::from_gray(160) }));
+
+                            if is_essential {
+                                ui.colored_label(Color32::from_rgb(0, 230, 180), "⭐ Essential");
+                            }
+                        });
+                    }
+
+                    if displayed_count == 0 {
+                        ui.label(RichText::new("No games match the current search filter.").size(11.0).color(Color32::GRAY));
                     }
                 });
 
-                ui.add_space(8.0);
+                ui.add_space(4.0);
+                ui.separator();
+
+                // Pattern Rules Section
+                ui.collapsing(
+                    RichText::new(format!("Search Pattern Rules ({} active)", self.editing_custom_patterns.len())).size(11.5).strong(),
+                    |ui| {
+                        ui.label(RichText::new("Pattern rules automatically match any game containing the keyword (e.g. 'Pokemon', 'Zelda').").size(10.5).color(Color32::GRAY));
+                        ui.horizontal(|ui| {
+                            ui.text_edit_singleline(&mut self.new_favorite_pattern);
+                            if ui.button(RichText::new("➕ Add Pattern").size(11.0)).clicked() && !self.new_favorite_pattern.trim().is_empty() {
+                                let pat = self.new_favorite_pattern.trim().to_string();
+                                if !self.editing_custom_patterns.contains(&pat) {
+                                    self.editing_custom_patterns.push(pat);
+                                }
+                                self.new_favorite_pattern.clear();
+                            }
+                        });
+
+                        ui.horizontal_wrapped(|ui| {
+                            let mut to_remove = None;
+                            for (p_i, pat) in self.editing_custom_patterns.iter().enumerate() {
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new(format!("• {}", pat)).size(11.0).color(Color32::from_rgb(0, 240, 255)));
+                                    if ui.button(RichText::new("✖").size(9.0)).clicked() {
+                                        to_remove = Some(p_i);
+                                    }
+                                });
+                            }
+                            if let Some(r_idx) = to_remove {
+                                self.editing_custom_patterns.remove(r_idx);
+                            }
+                        });
+                    },
+                );
+
+                if let Some(ref note) = self.favorites_save_notification {
+                    ui.add_space(4.0);
+                    ui.colored_label(Color32::from_rgb(80, 240, 120), note);
+                }
+
+                ui.add_space(6.0);
                 ui.separator();
                 ui.horizontal(|ui| {
-                    if ui.button(RichText::new("💾 Save favorites.json").strong().color(Color32::WHITE)).clicked() {
+                    if ui.button(RichText::new("💾 Save favorites.json").size(12.0).strong().color(Color32::WHITE)).clicked() {
                         do_save = true;
                     }
-                    if ui.button("Cancel").clicked() {
+                    if ui.button(RichText::new("Close").size(11.5)).clicked() {
                         close_modal = true;
                     }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(RichText::new(format!("Curated: {} games", self.editing_selected_games.len())).size(11.0).color(Color32::from_rgb(0, 240, 255)));
+                    });
                 });
             });
 
         if do_save {
             if let Some(ref dir) = self.platform_states[p_idx].found_dir {
-                let games_list: Vec<String> = self.editing_selected_games.iter().cloned().collect();
+                let mut games_list: Vec<String> = self.editing_selected_games.iter().cloned().collect();
+                games_list.sort();
+
                 let favs = FavoritesList {
                     platform: self.platform_states[p_idx].platform.id.to_string(),
                     title: format!("{} Curated Favorites", self.platform_states[p_idx].platform.name),
-                    games: games_list.clone(),
-                    patterns: games_list,
+                    games: games_list,
+                    patterns: self.editing_custom_patterns.clone(),
                 };
 
-                let _ = save_favorites(dir, &favs);
-                self.platform_states[p_idx].favorites = Some(favs);
+                match save_favorites(dir, &favs) {
+                    Ok(_) => {
+                        self.favorites_save_notification = Some(format!("✓ Successfully saved favorites.json with {} games!", favs.games.len()));
+                        self.platform_states[p_idx].favorites = Some(favs);
+                    }
+                    Err(e) => {
+                        self.favorites_save_notification = Some(format!("Error saving favorites: {}", e));
+                    }
+                }
+            } else {
+                self.favorites_save_notification = Some("Error: Source folder not found.".to_string());
             }
-            close_modal = true;
         }
 
         if close_modal {
             self.editing_platform_idx = None;
             self.editing_selected_games.clear();
+            self.editing_custom_patterns.clear();
+            self.favorites_save_notification = None;
         }
     }
 }
