@@ -14,7 +14,7 @@ use crate::platforms::PLATFORMS;
 #[derive(Parser, Debug)]
 #[command(name = "retro-cardmaker")]
 #[command(author = "Retro CardMaker Team")]
-#[command(version = "0.1.0")]
+#[command(version)]
 #[command(about = "Quickinstaller for formatting SD-cards, structuring ROMs, curated favorites, and downloading artwork for retro handhelds.", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]

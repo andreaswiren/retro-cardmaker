@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-10-01
+
+### Added
+- **Refined Compact Desktop Interface**:
+  - High-density dark layout tailored for desktop power users with reduced font scales (11.5px - 13.5px).
+  - High-contrast visual accents, subtle borders, and space-efficient control panels.
+- **Enhanced Interactive Favorites Curation (`favorites.json`)**:
+  - Real-time search filtering across full ROM collections.
+  - Quick selection actions: "⭐ Top Essentials", "Select All Filtered", "Invert Selection", and "Clear All".
+  - "Show Selected Only" filter mode to inspect and curate shortlists.
+  - Dynamic keyword pattern rules editor to automatically capture game franchises (e.g. "Pokemon", "Zelda", "Mario").
+  - Live collapsible `favorites.json` JSON code preview for real-time verification before saving.
+  - Instant 1-click `favorites.json` generation and persistence directly in ROM directories.
+- **Deep ROM Library Discovery**:
+  - Auto-discovery of standard libraries (e.g. `C:\Users\Andreas\OneDrive\Roms`).
+  - Recursive scanner matching nested subfolders up to 3 levels deep (e.g. `gameboy advance/roms/`, `gameboy advance/saves/`).
+  - Detection and handling of existing local artwork (`Imgs/`, `covers/`) and battery save files (`.sav`).
+- **Interactive Prototyping Suite**:
+  - Interactive HTML/CSS UX prototype with instant mockup testing and visual previews.
+
 ## [0.1.0] - 2026-10-01
 
 ### Added

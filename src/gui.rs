@@ -133,9 +133,26 @@ impl RetroCardMakerApp {
             favorites_save_notification: None,
         };
 
-        // If removable drive found, auto-select it
-        if let Some(pos) = app.drives.iter().position(|d| d.is_removable) {
-            app.selected_drive_idx = pos;
+        // Apply Refined Compact Desktop Dark Theme
+        let mut visuals = egui::Visuals::dark();
+        visuals.panel_fill = Color32::from_rgb(9, 12, 16);
+        visuals.window_fill = Color32::from_rgb(13, 18, 25);
+        visuals.window_stroke = Stroke::new(1.0, Color32::from_rgb(45, 58, 78));
+        visuals.widgets.noninteractive.bg_fill = Color32::from_rgb(15, 20, 28);
+        visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, Color32::from_rgb(28, 36, 50));
+        visuals.widgets.inactive.bg_fill = Color32::from_rgb(18, 24, 34);
+        visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, Color32::from_rgb(32, 42, 58));
+        visuals.widgets.hovered.bg_fill = Color32::from_rgb(25, 34, 48);
+        visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, Color32::from_rgb(0, 229, 255));
+        visuals.widgets.active.bg_fill = Color32::from_rgb(30, 42, 60);
+        visuals.selection.bg_fill = Color32::from_rgb(0, 160, 210);
+        _cc.egui_ctx.set_visuals(visuals);
+
+        // Auto-discover C:\Users\Andreas\OneDrive\Roms if present
+        let default_user_path = "C:\\Users\\Andreas\\OneDrive\\Roms";
+        if Path::new(default_user_path).exists() {
+            app.source_path = default_user_path.to_string();
+            app.scan_source_folder();
         }
 
         app
@@ -893,6 +910,15 @@ impl RetroCardMakerApp {
                             }
                         }
                     }
+                    if ui.button(RichText::new("Invert").size(11.0)).clicked() {
+                        for rom in &p_state.rom_files {
+                            if self.editing_selected_games.contains(rom) {
+                                self.editing_selected_games.remove(rom);
+                            } else {
+                                self.editing_selected_games.insert(rom.clone());
+                            }
+                        }
+                    }
                     if ui.button(RichText::new("Clear All").size(11.0)).clicked() {
                         self.editing_selected_games.clear();
                     }
@@ -987,6 +1013,31 @@ impl RetroCardMakerApp {
                                 self.editing_custom_patterns.remove(r_idx);
                             }
                         });
+                    },
+                );
+
+                // Code Preview Section
+                ui.collapsing(
+                    RichText::new("📄 Live favorites.json Code Preview").size(11.5).strong(),
+                    |ui| {
+                        let mut preview_games: Vec<String> = self.editing_selected_games.iter().cloned().collect();
+                        preview_games.sort();
+                        let preview_fav = FavoritesList {
+                            platform: p_state.platform.id.to_string(),
+                            title: format!("{} Curated Favorites", p_state.platform.name),
+                            games: preview_games,
+                            patterns: self.editing_custom_patterns.clone(),
+                        };
+                        if let Ok(mut json_str) = serde_json::to_string_pretty(&preview_fav) {
+                            ScrollArea::vertical().max_height(110.0).show(ui, |ui| {
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut json_str)
+                                        .font(egui::TextStyle::Monospace)
+                                        .desired_rows(6)
+                                        .desired_width(f32::INFINITY)
+                                );
+                            });
+                        }
                     },
                 );
 

@@ -3,7 +3,7 @@
 [![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg)](https://www.rust-lang.org)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-green.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-v0.1.0-brightgreen.svg)](https://github.com/andreaswiren/retro-cardmaker/releases)
+[![Release](https://img.shields.io/badge/Release-v0.2.0-brightgreen.svg)](https://github.com/andreaswiren/retro-cardmaker/releases)
 
 **Retro CardMaker** is a high-performance Windows application and QuickInstaller designed to format SD-cards, organize ROM directories, manage curated "Best of" game shortlists (`favorites.json`), and automatically scrape high-resolution boxart formatted specifically for retro handheld devices and frontends.
 
