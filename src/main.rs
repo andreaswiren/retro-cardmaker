@@ -21,8 +21,8 @@ fn main() -> eframe::Result<()> {
     // Default: Launch rich desktop GUI
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1020.0, 760.0])
-            .with_min_inner_size([860.0, 620.0])
+            .with_inner_size([1160.0, 760.0])
+            .with_min_inner_size([920.0, 640.0])
             .with_title("Retro CardMaker - Handheld SD Card Setup & ROM Curating QuickInstaller"),
         ..Default::default()
     };
