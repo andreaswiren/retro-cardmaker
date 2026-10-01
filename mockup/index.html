@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro CardMaker - Professional UX Prototype & Interactive Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0a0d14;
+      --bg-card: #121824;
+      --bg-card-hover: #172030;
+      --bg-card-active: #1d283c;
+      --bg-modal: #101622;
+      --border-subtle: #1e293b;
+      --border-bright: #334155;
+      --cyan: #00f0ff;
+      --cyan-dim: rgba(0, 240, 255, 0.15);
+      --purple: #8b5cf6;
+      --purple-dim: rgba(139, 92, 246, 0.15);
+      --green: #10b981;
+      --green-dim: rgba(16, 185, 129, 0.15);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.15);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.15);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+      --shadow-glow-cyan: 0 0 20px rgba(0, 240, 255, 0.25);
+      --shadow-glow-purple: 0 0 20px rgba(139, 92, 246, 0.25);
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 240, 255, 0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 85% 60%, rgba(139, 92, 246, 0.06), transparent);
+    }
+
+    /* Top Navigation */
+    header {
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(10, 13, 20, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 0.85rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .brand-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tag {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-full);
+      background: var(--cyan-dim);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(18, 24, 36, 0.6);
+      padding: 0.3rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .nav-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.45rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .nav-tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-tab-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(139, 92, 246, 0.2));
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .github-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: var(--transition);
+    }
+
+    .github-btn:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    }
+
+    /* Main Container */
+    main {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* Section Headers */
+    .hero-banner {
+      background: linear-gradient(180deg, rgba(18, 24, 36, 0.7), rgba(18, 24, 36, 0.4));
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(0, 240, 255, 0.12), transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.85rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      max-width: 800px;
+      margin-bottom: 1.25rem;
+    }
+
+    .data-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .data-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 0.3rem 0.85rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .data-pill strong {
+      color: var(--cyan);
+    }
+
+    /* Wizard Step Bar */
+    .wizard-steps {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+
+    .wizard-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      position: relative;
+    }
+
+    .wizard-step:hover {
+      border-color: var(--border-bright);
+      background: var(--bg-card-hover);
+    }
+
+    .wizard-step.active {
+      border-color: var(--cyan);
+      background: linear-gradient(135deg, rgba(18, 24, 36, 0.95), rgba(0, 240, 255, 0.05));
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+    }
+
+    .wizard-step.completed {
+      border-color: var(--green);
+    }
+
+    .step-number {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+    }
+
+    .wizard-step.active .step-number {
+      color: var(--cyan);
+    }
+
+    .wizard-step.completed .step-number {
+      color: var(--green);
+    }
+
+    .step-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .step-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    /* Step Panels */
+    .step-panel {
+      display: none;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .step-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Grid Layouts */
+    .two-col-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+    }
+
+    .badge-cyan { background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(0, 240, 255, 0.3); }
+    .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(139, 92, 246, 0.3); }
+    .badge-amber { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); }
+
+    /* Drive Item Component */
+    .drive-selector-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .drive-option {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: var(--transition);
+    }
+
+    .drive-option:hover {
+      border-color: var(--border-bright);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .drive-option.selected {
+      border-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.04);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
+    }
+
+    .drive-option.protected {
+      opacity: 0.7;
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.03);
+    }
+
+    .drive-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .drive-icon {
+      font-size: 1.75rem;
+    }
+
+    .drive-letter {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .drive-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .drive-status-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.25rem;
+    }
+
+    /* Format Options */
+    .format-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      margin-top: 1rem;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--border-bright);
+      transition: .3s;
+      border-radius: var(--radius-full);
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: var(--cyan); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .fs-choice-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .fs-box {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      cursor: pointer;
+      transition: var(--transition);
+      background: rgba(0,0,0,0.2);
+    }
+
+    .fs-box:hover { border-color: var(--border-bright); }
+    .fs-box.selected { border-color: var(--cyan); background: var(--cyan-dim); }
+
+    .fs-title { font-weight: 700; font-size: 0.85rem; margin-bottom: 0.2rem; }
+    .fs-desc { font-size: 0.72rem; color: var(--text-muted); }
+
+    /* Device Profiles Grid */
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .profile-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .profile-card:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-2px);
+      background: var(--bg-card-hover);
+    }
+
+    .profile-card.selected {
+      border-color: var(--purple);
+      background: linear-gradient(135deg, var(--bg-card), rgba(139, 92, 246, 0.08));
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+    }
+
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .profile-icon {
+      font-size: 1.5rem;
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .profile-name {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .profile-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .profile-pattern {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.7rem;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 0.4rem 0.6rem;
+      border-radius: 4px;
+      color: var(--cyan);
+      border-left: 2px solid var(--cyan);
+    }
+
+    /* Platforms List */
+    .platform-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .platform-row {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: var(--transition);
+    }
+
+    .platform-row:hover {
+      border-color: var(--border-bright);
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .platform-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .custom-checkbox {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--cyan);
+      cursor: pointer;
+    }
+
+    .platform-details h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .platform-details p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .platform-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      background: var(--bg-card-hover);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 0.45rem 0.9rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn:hover {
+      border-color: var(--border-bright);
+      background: var(--bg-card-active);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 20px rgba(14, 165, 233, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-cyan {
+      background: var(--cyan);
+      border-color: var(--cyan);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .btn-cyan:hover {
+      box-shadow: 0 0 15px var(--cyan);
+    }
+
+    .btn-green {
+      background: var(--green);
+      border-color: var(--green);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .btn-green:hover {
+      box-shadow: 0 0 15px var(--green);
+    }
+
+    .segmented-control {
+      display: inline-flex;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+    }
+
+    .seg-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .seg-btn.active {
+      background: var(--purple);
+      color: #fff;
+    }
+
+    /* Live Terminal Console */
+    .terminal-window {
+      background: #06090e;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .terminal-header {
+      background: #0e131d;
+      padding: 0.5rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+
+    .terminal-body {
+      padding: 1rem;
+      height: 240px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+
+    .log-line { display: flex; gap: 0.5rem; }
+    .log-time { color: var(--text-faint); }
+    .log-info { color: var(--cyan); }
+    .log-success { color: var(--green); }
+    .log-warn { color: var(--amber); }
+
+    /* Progress Bar */
+    .progress-bar-container {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      height: 14px;
+      overflow: hidden;
+      margin: 0.75rem 0;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+      width: 0%;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 12px var(--cyan);
+    }
+
+    /* Modal Component */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--bg-modal);
+      border: 1px solid var(--border-bright);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 900px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), var(--shadow-glow-cyan);
+      animation: modalZoom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalZoom {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-close:hover { color: #fff; }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 1.5rem;
+    }
+
+    .modal-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    /* Game Row in Modal */
+    .game-item {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .game-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--border-subtle);
+    }
+
+    .game-item.selected {
+      background: rgba(0, 240, 255, 0.05);
+      border-color: rgba(0, 240, 255, 0.3);
+    }
+
+    .game-boxart-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: #1e293b;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .game-info {
+      flex: 1;
+    }
+
+    .game-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .game-meta {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* Boxart Preview Card */
+    .art-preview-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .art-large-img {
+      max-width: 180px;
+      max-height: 180px;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      margin-bottom: 0.85rem;
+      border: 1px solid var(--border-bright);
+    }
+
+    /* Mockup Gallery View */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .gallery-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .gallery-card:hover {
+      border-color: var(--cyan);
+      box-shadow: var(--shadow-glow-cyan);
+    }
+
+    .gallery-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      cursor: zoom-in;
+    }
+
+    .gallery-info {
+      padding: 1.25rem;
+    }
+
+    .gallery-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .gallery-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🎮</div>
+      <div>
+        <div class="brand-title">Retro CardMaker</div>
+      </div>
+      <span class="brand-tag">v0.1.0 Interactive UX Mockup</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab-btn active" onclick="switchMainView('interactive')">⚡ Live Interactive Prototype</button>
+      <button class="nav-tab-btn" onclick="switchMainView('gallery')">🖼️ High-Res Mockup Gallery</button>
+      <button class="nav-tab-btn" onclick="switchMainView('spec')">📋 System Architecture</button>
+    </div>
+
+    <div class="header-actions">
+      <a href="https://github.com/andreaswiren/retro-cardmaker" target="_blank" class="github-btn">
+        <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub Repo
+      </a>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- INTERACTIVE VIEW -->
+    <div id="view-interactive">
+      
+      <!-- Hero Context Banner -->
+      <div class="hero-banner">
+        <h1 class="hero-title">SD-Card QuickInstaller & Curated ROM Suite</h1>
+        <p class="hero-desc">
+          Safe SD-card formatting (FAT32/exFAT), handheld launcher directory presets, curated <code>favorites.json</code> management, and automated Libretro CDN artwork scraping. Tested against your real library in <code>C:\Users\Andreas\OneDrive\Roms\</code>.
+        </p>
+
+        <div class="data-pill-row">
+          <span class="data-pill">Source: <strong>C:\Users\Andreas\OneDrive\Roms\</strong></span>
+          <span class="data-pill">Discovered Platforms: <strong>14 Systems</strong></span>
+          <span class="data-pill">NDS Library: <strong>120 ROMs + Curated Favorites</strong></span>
+          <span class="data-pill">Local Boxarts: <strong>NDS\Imgs\ (Present)</strong></span>
+          <span class="data-pill">Saves & States: <strong>Integrated</strong></span>
+        </div>
+      </div>
+
+      <!-- 5-Step Wizard Navigation -->
+      <div class="wizard-steps">
+        <div class="wizard-step active" onclick="goToStep(1)">
+          <span class="step-number">Step 1</span>
+          <span class="step-title">💾 SD Card & Format</span>
+          <span class="step-desc">Drive detection & safe format</span>
+        </div>
+        <div class="wizard-step" onclick="goToStep(2)">
+          <span class="step-number">Step 2</span>
+          <span class="step-title">🕹️ Device Profile</span>
+          <span class="step-desc">Anbernic, ES-DE, RetroArch</span>
+        </div>
+        <div class="wizard-step" onclick="goToStep(3)">
+          <span class="step-number">Step 3</span>
+          <span class="step-title">📂 ROMs & Curate</span>
+          <span class="step-desc">Full library vs Favorites.json</span>
+        </div>
+        <div class="wizard-step" onclick="goToStep(4)">
+          <span class="step-number">Step 4</span>
+          <span class="step-title">🖼️ Boxart Pipeline</span>
+          <span class="step-desc">Local Imgs + Libretro CDN</span>
+        </div>
+        <div class="wizard-step" onclick="goToStep(5)">
+          <span class="step-number">Step 5</span>
+          <span class="step-title">🚀 QuickInstall</span>
+          <span class="step-desc">Execution & live console</span>
+        </div>
+      </div>
+
+      <!-- STEP 1: SD CARD & FORMAT -->
+      <div id="step-1" class="step-panel active">
+        <div class="two-col-grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Select Target SD Card Drive</h3>
+                <span class="badge badge-cyan">Physical Devices</span>
+              </div>
+
+              <div class="drive-selector-box">
+                <!-- Removable SD Option 1 -->
+                <div class="drive-option selected" onclick="selectDrive(this, 'E:', 'exFAT', '58.4 GB', '64.0 GB', false)">
+                  <div class="drive-info">
+                    <div class="drive-icon">💾</div>
+                    <div>
+                      <div class="drive-letter">E: [RETRO_SD]</div>
+                      <div class="drive-meta">Removable SD/USB • exFAT • Free: 58.4 GB / 64.0 GB</div>
+                    </div>
+                  </div>
+                  <div class="drive-status-badge">
+                    <span class="badge badge-green">Recommended</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">Ready to Install</span>
+                  </div>
+                </div>
+
+                <!-- Removable SD Option 2 -->
+                <div class="drive-option" onclick="selectDrive(this, 'F:', 'FAT32', '12.1 GB', '32.0 GB', false)">
+                  <div class="drive-info">
+                    <div class="drive-icon">💾</div>
+                    <div>
+                      <div class="drive-letter">F: [MIYOO_CARD]</div>
+                      <div class="drive-meta">Removable SD/USB • FAT32 • Free: 12.1 GB / 32.0 GB</div>
+                    </div>
+                  </div>
+                  <div class="drive-status-badge">
+                    <span class="badge badge-purple">Miyoo Mini</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">Available</span>
+                  </div>
+                </div>
+
+                <!-- Protected System Drive -->
+                <div class="drive-option protected" onclick="selectDrive(this, 'C:', 'NTFS', '28.0 GB', '2.0 TB', true)">
+                  <div class="drive-info">
+                    <div class="drive-icon">🛡️</div>
+                    <div>
+                      <div class="drive-letter">C: [Windows OS]</div>
+                      <div class="drive-meta">Fixed NVMe Drive • NTFS • Free: 28.0 GB / 2000 GB</div>
+                    </div>
+                  </div>
+                  <div class="drive-status-badge">
+                    <span class="badge badge-red">PROTECTED</span>
+                    <span style="font-size: 0.7rem; color: #ef4444;">Format Blocked</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Format Options Box -->
+              <div class="format-card" id="format-section">
+                <div class="toggle-row">
+                  <div>
+                    <strong style="font-size: 0.95rem;">Format SD-Card before copying</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Erases card cleanly with optimized cluster alignment.</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="format-toggle" checked onchange="toggleFormatOption(this.checked)">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+
+                <div id="fs-selectors">
+                  <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem;">Target File System:</div>
+                  <div class="fs-choice-group">
+                    <div class="fs-box selected" id="fs-exfat" onclick="chooseFs('exFAT')">
+                      <div class="fs-title">exFAT (Recommended)</div>
+                      <div class="fs-desc">Modern handhelds (RG Cube, Odin, Steam Deck, Android) and 64GB+ cards.</div>
+                    </div>
+                    <div class="fs-box" id="fs-fat32" onclick="chooseFs('FAT32')">
+                      <div class="fs-title">FAT32</div>
+                      <div class="fs-desc">Legacy handhelds (RG350, Miyoo Mini, RG35XX GarlicOS) & ≤32GB cards.</div>
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Volume Label:</label>
+                    <input type="text" value="RETRO" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); color: #fff; padding: 0.35rem 0.75rem; border-radius: 4px; font-weight: 600; width: 140px;">
+                  </div>
+                </div>
+
+                <div id="system-warning" style="display: none; margin-top: 0.85rem; padding: 0.75rem; background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-sm); color: #fca5a5; font-size: 0.8rem;">
+                  ⚠️ <strong>SAFETY VIOLATION PREVENTED:</strong> System Drive C: is strictly locked. The QuickInstaller refuses to format system volumes.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Target Subfolder Guidance Card -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Destination Subfolder</h3>
+                <span class="badge badge-purple">Structure</span>
+              </div>
+
+              <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 0.4rem;">Root Destination Path on SD Card:</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="target-subfolder-input" value="roms" oninput="updateDestPathPreview()" style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); color: #fff; padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); font-family: 'Fira Code', monospace; font-size: 0.9rem;">
+                  <button class="btn" onclick="setSubfolder('roms')">roms</button>
+                  <button class="btn" onclick="setSubfolder('Roms')">Roms</button>
+                  <button class="btn" onclick="setSubfolder('')">Root</button>
+                </div>
+              </div>
+
+              <div style="background: rgba(0,0,0,0.3); padding: 0.85rem; border-radius: var(--radius-sm); font-size: 0.8rem; margin-bottom: 1rem;">
+                <div style="color: var(--text-faint); margin-bottom: 0.2rem;">Full Target ROMs Base Directory:</div>
+                <code id="full-dest-preview" style="color: var(--cyan); font-weight: 600;">E:\roms\</code>
+              </div>
+
+              <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+                <p>💡 <strong>Handheld Tips:</strong></p>
+                <ul style="margin-left: 1.25rem; margin-top: 0.4rem;">
+                  <li><strong>Anbernic RG DS Launcher / Cube:</strong> Standard is <code>E:\roms\</code></li>
+                  <li><strong>Miyoo Mini / OnionOS:</strong> Expects <code>E:\Roms\</code></li>
+                  <li><strong>EmulationStation (ES-DE):</strong> Standard is <code>E:\roms\</code></li>
+                </ul>
+              </div>
+
+              <div style="margin-top: 1.5rem; text-align: right;">
+                <button class="btn btn-primary" onclick="goToStep(2)">Proceed to Device Profiles →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: DEVICE PROFILES -->
+      <div id="step-2" class="step-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Select Emulation Frontend / Device Launcher</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">The QuickInstaller reorganizes directory names and boxart targets automatically.</p>
+            </div>
+            <span class="badge badge-purple" id="active-profile-badge">Anbernic RG DS Selected</span>
+          </div>
+
+          <div class="profile-grid">
+            <!-- Anbernic RG DS -->
+            <div class="profile-card selected" onclick="selectProfile(this, 'anbernic-ds', 'Anbernic RG DS Launcher', 'roms', 'Imgs/<rom>.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">🕹️</div>
+                  <div>
+                    <div class="profile-name">Anbernic RG DS Launcher</div>
+                    <span class="badge badge-cyan" style="font-size: 0.65rem;">Modern Stock & Cube</span>
+                  </div>
+                </div>
+                <div class="profile-desc">Dual-screen Anbernic layout. Uses clean short codes (FC, SFC, GBA, NDS, MD, PS). Boxart placed in Imgs/ inside each system.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\roms\NDS\Imgs\Chrono_Trigger.png</div>
+            </div>
+
+            <!-- EmulationStation ES-DE -->
+            <div class="profile-card" onclick="selectProfile(this, 'es-de', 'EmulationStation (ES-DE)', 'roms', 'downloaded_media/<sys>/covers/<rom>.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">🎮</div>
+                  <div>
+                    <div class="profile-name">EmulationStation (ES-DE)</div>
+                    <span class="badge badge-purple" style="font-size: 0.65rem;">Universal Frontend</span>
+                  </div>
+                </div>
+                <div class="profile-desc">Android, Steam Deck, Windows, Linux. Uses roms/gba, roms/nds. Boxarts saved in downloaded_media/ or media/covers/.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\downloaded_media\nds\covers\Chrono.png</div>
+            </div>
+
+            <!-- RetroArch -->
+            <div class="profile-card" onclick="selectProfile(this, 'retroarch', 'RetroArch', 'roms', 'thumbnails/<System>/Named_Boxarts/<rom>.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">👾</div>
+                  <div>
+                    <div class="profile-name">RetroArch Standard</div>
+                    <span class="badge badge-green" style="font-size: 0.65rem;">Libretro Hierarchy</span>
+                  </div>
+                </div>
+                <div class="profile-desc">Standard playlist directories. Places artwork into thumbnails/System_Name/Named_Boxarts/ for native scanner detection.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\thumbnails\Nintendo_-_DS\Named_Boxarts\...</div>
+            </div>
+
+            <!-- GarlicOS / Anbernic Older -->
+            <div class="profile-card" onclick="selectProfile(this, 'garlic-os', 'GarlicOS / Anbernic Legacy', 'Roms', 'Roms/<CODE>/Imgs/<rom>.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">🧄</div>
+                  <div>
+                    <div class="profile-name">GarlicOS (RG35XX / RG350)</div>
+                    <span class="badge badge-amber" style="font-size: 0.65rem;">Legacy Anbernic</span>
+                  </div>
+                </div>
+                <div class="profile-desc">Uses Roms/<CODE> with Imgs/ folder. Ideal for RG35XX 1.x, RG350, and RG351 handhelds.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\Roms\NDS\Imgs\Chrono_Trigger.png</div>
+            </div>
+
+            <!-- Miyoo Mini OnionOS -->
+            <div class="profile-card" onclick="selectProfile(this, 'onion-os', 'Miyoo Mini / OnionOS', 'Roms', 'Roms/<CODE>/Imgs/<rom>.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">🧅</div>
+                  <div>
+                    <div class="profile-name">Miyoo Mini / OnionOS</div>
+                    <span class="badge badge-cyan" style="font-size: 0.65rem;">Miyoo Mini v4 / Plus</span>
+                  </div>
+                </div>
+                <div class="profile-desc">OnionOS directory architecture with Roms/<CODE> and high-speed Imgs/ previews.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\Roms\GBA\Imgs\Pokemon_Emerald.png</div>
+            </div>
+
+            <!-- Daijisho -->
+            <div class="profile-card" onclick="selectProfile(this, 'daijisho', 'Daijishō Launcher (Android)', 'roms', 'roms/<sys>/thumbnails/<rom>.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">📱</div>
+                  <div>
+                    <div class="profile-name">Daijishō Launcher</div>
+                    <span class="badge badge-purple" style="font-size: 0.65rem;">Android Handhelds</span>
+                  </div>
+                </div>
+                <div class="profile-desc">Designed for Retroid Pocket, Odin, and Android devices. Places covers in thumbnails/ folder.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\roms\nds\thumbnails\Chrono.png</div>
+            </div>
+
+            <!-- Pegasus -->
+            <div class="profile-card" onclick="selectProfile(this, 'pegasus', 'Pegasus Frontend', 'roms', 'roms/<sys>/media/<rom>.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">🐎</div>
+                  <div>
+                    <div class="profile-name">Pegasus Frontend</div>
+                    <span class="badge badge-green" style="font-size: 0.65rem;">Cross-Platform</span>
+                  </div>
+                </div>
+                <div class="profile-desc">Creates standard media/boxart structure and generates a compatible metadata.pegasus.txt file.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\roms\nds\media\Chrono_Trigger.png</div>
+            </div>
+
+            <!-- Batocera ArkOS -->
+            <div class="profile-card" onclick="selectProfile(this, 'batocera', 'Batocera / ArkOS / AmberELEC', 'roms', 'roms/<sys>/images/<rom>-image.png')">
+              <div>
+                <div class="profile-header">
+                  <div class="profile-icon">🐧</div>
+                  <div>
+                    <div class="profile-name">Batocera / ArkOS</div>
+                    <span class="badge badge-amber" style="font-size: 0.65rem;">Linux Handhelds</span>
+                  </div>
+                </div>
+                <div class="profile-desc">Standard Linux SBC layout with <rom>-image.png naming scheme for scraped artwork.</div>
+              </div>
+              <div class="profile-pattern">Pattern: E:\roms\nds\images\Chrono-image.png</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
+            <button class="btn" onclick="goToStep(1)">← Back to SD Card</button>
+            <button class="btn btn-primary" onclick="goToStep(3)">Proceed to ROMs & Favorites →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: ROMS & FAVORITES -->
+      <div id="step-3" class="step-panel">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Discovered Platforms & Curated Games</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted);">Scanned directly from <code>C:\Users\Andreas\OneDrive\Roms\</code></p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn" onclick="toggleAllPlatforms(true)">Select All</button>
+              <button class="btn" onclick="toggleAllPlatforms(false)">Deselect All</button>
+            </div>
+          </div>
+
+          <div class="platform-list">
+            <!-- NDS -->
+            <div class="platform-row">
+              <div class="platform-left">
+                <input type="checkbox" checked class="custom-checkbox">
+                <div class="platform-details">
+                  <h4>Nintendo DS (NDS)</h4>
+                  <p>120 ROMs • Found <strong>Favorites/</strong> subfolder • Found <strong>Imgs/</strong> boxarts</p>
+                </div>
+              </div>
+              <div class="platform-actions">
+                <div class="segmented-control">
+                  <button class="seg-btn" onclick="setMode(this, 'all')">All (120)</button>
+                  <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (18)</button>
+                </div>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('nds')">⭐ Curate Favorites</button>
+              </div>
+            </div>
+
+            <!-- GBA -->
+            <div class="platform-row">
+              <div class="platform-left">
+                <input type="checkbox" checked class="custom-checkbox">
+                <div class="platform-details">
+                  <h4>Game Boy Advance (GBA)</h4>
+                  <p>350 ROMs in <code>gameboy advance\roms</code> • Found <strong>saves/</strong></p>
+                </div>
+              </div>
+              <div class="platform-actions">
+                <div class="segmented-control">
+                  <button class="seg-btn" onclick="setMode(this, 'all')">All (350)</button>
+                  <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (15)</button>
+                </div>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('gba')">⭐ Curate Favorites</button>
+              </div>
+            </div>
+
+            <!-- SNES -->
+            <div class="platform-row">
+              <div class="platform-left">
+                <input type="checkbox" checked class="custom-checkbox">
+                <div class="platform-details">
+                  <h4>Super Nintendo (SNES)</h4>
+                  <p>210 ROMs in <code>snes</code> • Curated shortlist ready</p>
+                </div>
+              </div>
+              <div class="platform-actions">
+                <div class="segmented-control">
+                  <button class="seg-btn active" onclick="setMode(this, 'all')">All (210)</button>
+                  <button class="seg-btn" onclick="setMode(this, 'fav')">Curated (15)</button>
+                </div>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('snes')">⭐ Curate Favorites</button>
+              </div>
+            </div>
+
+            <!-- NES -->
+            <div class="platform-row">
+              <div class="platform-left">
+                <input type="checkbox" checked class="custom-checkbox">
+                <div class="platform-details">
+                  <h4>Nintendo Entertainment System (NES)</h4>
+                  <p>180 ROMs in <code>nes</code></p>
+                </div>
+              </div>
+              <div class="platform-actions">
+                <div class="segmented-control">
+                  <button class="seg-btn" onclick="setMode(this, 'all')">All (180)</button>
+                  <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (15)</button>
+                </div>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('nes')">⭐ Curate Favorites</button>
+              </div>
+            </div>
+
+            <!-- PSX -->
+            <div class="platform-row">
+              <div class="platform-left">
+                <input type="checkbox" checked class="custom-checkbox">
+                <div class="platform-details">
+                  <h4>Sony PlayStation (PSX / PS1)</h4>
+                  <p>45 ROMs (CHD/CUE) in <code>psx</code> and <code>Sony - PlayStation</code></p>
+                </div>
+              </div>
+              <div class="platform-actions">
+                <div class="segmented-control">
+                  <button class="seg-btn active" onclick="setMode(this, 'all')">All (45)</button>
+                  <button class="seg-btn" onclick="setMode(this, 'fav')">Curated (14)</button>
+                </div>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('psx')">⭐ Curate Favorites</button>
+              </div>
+            </div>
+
+            <!-- Mega Drive -->
+            <div class="platform-row">
+              <div class="platform-left">
+                <input type="checkbox" checked class="custom-checkbox">
+                <div class="platform-details">
+                  <h4>Sega Mega Drive / Genesis</h4>
+                  <p>140 ROMs in <code>sega mega drive</code></p>
+                </div>
+              </div>
+              <div class="platform-actions">
+                <div class="segmented-control">
+                  <button class="seg-btn" onclick="setMode(this, 'all')">All (140)</button>
+                  <button class="seg-btn active" onclick="setMode(this, 'fav')">Curated (13)</button>
+                </div>
+                <button class="btn btn-cyan" onclick="openFavoritesModal('megadrive')">⭐ Curate Favorites</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
+            <button class="btn" onclick="goToStep(2)">← Back to Profiles</button>
+            <button class="btn btn-primary" onclick="goToStep(4)">Proceed to Boxart Pipeline →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: BOXART PIPELINE -->
+      <div id="step-4" class="step-panel">
+        <div class="two-col-grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Artwork Scraping & Local Media</h3>
+                <span class="badge badge-green">Libretro CDN</span>
+              </div>
+
+              <div class="toggle-row">
+                <div>
+                  <strong style="font-size: 0.95rem;">Enable Boxart Syncing during Copy</strong>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Matches each ROM and places cover image in your launcher's art folder.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1rem; margin-top: 1rem;">
+                <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--cyan); margin-bottom: 0.4rem;">Media Pipeline Hierarchy:</h4>
+                <ol style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; margin-left: 1.25rem;">
+                  <li><strong>Local Cache First:</strong> Copies existing boxarts found in <code>Imgs/</code> or <code>_retroarch_thumbnails/</code>.</li>
+                  <li><strong>Libretro CDN Fallback:</strong> If missing, downloads official PNG boxarts from GitHub CDN (100% free, no API keys).</li>
+                  <li><strong>Illegal Character Normalization:</strong> Replaces <code>& * / : ` < > ? \ | "</code> with Libretro standard <code>_</code>.</li>
+                  <li><strong>Target Frontend Renaming:</strong> Formats to <code><rom>.png</code>, <code><rom>-image.png</code>, or <code>covers/<rom>.png</code>.</li>
+                </ol>
+              </div>
+
+              <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
+                <button class="btn" onclick="goToStep(3)">← Back to ROMs</button>
+                <button class="btn btn-primary" onclick="goToStep(5)">Review & Run QuickInstaller →</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Live Boxart Preview</h3>
+                <span class="badge badge-cyan">Matched Real Art</span>
+              </div>
+
+              <div class="art-preview-card">
+                <img src="assets/chrono_trigger.png" alt="Chrono Trigger Cover" class="art-large-img" onerror="this.src='assets/cardmaker_ui_mockup.jpg'">
+                <div style="font-weight: 700; font-size: 1rem;">Chrono Trigger (Europe) (En,Fr)</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Nintendo DS • Local Media in <code>nds\Imgs\</code></div>
+                <div class="profile-pattern" style="width: 100%; text-align: left;">
+                  Target Path: <strong>E:\roms\NDS\Imgs\Chrono Trigger.png</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5: QUICKINSTALL EXECUTION -->
+      <div id="step-5" class="step-panel">
+        <div class="two-col-grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">QuickInstall Execution Center</h3>
+                <span class="badge badge-green" id="install-status-badge">Ready</span>
+              </div>
+
+              <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: #fff;">Summary of Actions:</div>
+                <ul style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.7; margin-left: 1.25rem;">
+                  <li>Format target drive <strong style="color: var(--cyan);">E: (64GB)</strong> as <strong style="color: var(--cyan);">exFAT</strong> (Label: RETRO)</li>
+                  <li>Target Device Profile: <strong style="color: var(--purple);">Anbernic RG DS Launcher</strong> (Folder: <code>E:\roms\</code>)</li>
+                  <li>Platforms: <strong>NDS (18 Curated), GBA (15 Curated), SNES (All 210), NES (15 Curated), PSX (All 45), MD (13 Curated)</strong></li>
+                  <li>Total ROMs queued: <strong style="color: #fff;">316 games</strong> (~14.2 GB)</li>
+                  <li>Boxart Syncing: <strong style="color: var(--green);">Enabled</strong> (Local Imgs + Libretro fallback)</li>
+                </ul>
+              </div>
+
+              <div style="margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 600;">
+                  <span id="progress-phase-label">Status: Ready to Launch</span>
+                  <span id="progress-percent-label" style="color: var(--cyan);">0%</span>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" id="progress-bar"></div>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);" id="current-file-label">Awaiting start command...</div>
+              </div>
+
+              <div style="display: flex; gap: 0.75rem;">
+                <button class="btn btn-green" id="start-btn" onclick="startSimulatedInstall()" style="font-size: 1rem; padding: 0.65rem 1.5rem;">
+                  🚀 Start QuickInstaller
+                </button>
+                <button class="btn" id="cancel-btn" onclick="cancelSimulatedInstall()" style="display: none; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);">
+                  🛑 Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="terminal-window">
+              <div class="terminal-header">
+                <span class="terminal-dot dot-red"></span>
+                <span class="terminal-dot dot-yellow"></span>
+                <span class="terminal-dot dot-green"></span>
+                <span style="margin-left: 0.5rem;">QuickInstaller Real-Time Console</span>
+              </div>
+              <div class="terminal-body" id="terminal-body">
+                <div class="log-line"><span class="log-time">[22:45:01]</span> <span class="log-info">[INIT]</span> Retro CardMaker core engine ready.</div>
+                <div class="log-line"><span class="log-time">[22:45:02]</span> <span class="log-info">[DRIVE]</span> Target drive E: verified (Removable SD).</div>
+                <div class="log-line"><span class="log-time">[22:45:02]</span> <span class="log-info">[SRC]</span> Loaded library from C:\Users\Andreas\OneDrive\Roms\</div>
+                <div class="log-line"><span class="log-time">[22:45:03]</span> <span class="log-success">[PROFILE]</span> Layout configured for Anbernic RG DS Launcher.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GALLERY VIEW -->
+    <div id="view-gallery" style="display: none;">
+      <div class="hero-banner">
+        <h2 class="hero-title">High-Resolution Desktop Application Mockups</h2>
+        <p class="hero-desc">
+          Pixel-accurate visual UI screens generated for Retro CardMaker on Windows 11. Designed with ergonomic controls, high contrast readability for handheld displays, and instant favorites curation.
+        </p>
+      </div>
+
+      <div class="gallery-grid">
+        <div class="gallery-card">
+          <img src="assets/cardmaker_ui_mockup.jpg" alt="Retro CardMaker Main Desktop Interface" class="gallery-img" onclick="openLightbox(this.src)">
+          <div class="gallery-info">
+            <div class="gallery-title">Desktop Application Interface Mockup</div>
+            <div class="gallery-desc">Full 5-step horizontal quickinstaller wizard, SD card formatting module with hardware safety lock, device profile selector, and dual progress bars.</div>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <img src="assets/cardmaker_favorites_modal.jpg" alt="Curated Favorites Modal Mockup" class="gallery-img" onclick="openLightbox(this.src)">
+          <div class="gallery-info">
+            <div class="gallery-title">Curated Favorites & Shortlist Modal</div>
+            <div class="gallery-desc">Interactive game selector with live boxart preview, top classics recommendations, instant favorites.json serializer, and Libretro thumbnail sync.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPEC VIEW -->
+    <div id="view-spec" style="display: none;">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Technical Specification & Launcher Rules</h2>
+          <span class="badge badge-cyan">Architecture Spec</span>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-bright); text-align: left;">
+              <th style="padding: 0.75rem 0.5rem;">Frontend / Device</th>
+              <th style="padding: 0.75rem 0.5rem;">Recommended Subfolder</th>
+              <th style="padding: 0.75rem 0.5rem;">Platform Code Pattern</th>
+              <th style="padding: 0.75rem 0.5rem;">Boxart Placement & Naming Pattern</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+              <td style="padding: 0.75rem 0.5rem;"><strong>Anbernic RG DS Launcher</strong></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
+              <td style="padding: 0.75rem 0.5rem;">Short Codes (<code>FC, SFC, GBA, NDS, PS, MD</code>)</td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/<CODE>/Imgs/<rom_stem>.png</code></td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+              <td style="padding: 0.75rem 0.5rem;"><strong>EmulationStation (ES-DE)</strong></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
+              <td style="padding: 0.75rem 0.5rem;">Standard IDs (<code>nes, snes, gba, nds, psx</code>)</td>
+              <td style="padding: 0.75rem 0.5rem;"><code>downloaded_media/<sys>/covers/<rom_stem>.png</code></td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+              <td style="padding: 0.75rem 0.5rem;"><strong>RetroArch</strong></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
+              <td style="padding: 0.75rem 0.5rem;">Libretro System Names</td>
+              <td style="padding: 0.75rem 0.5rem;"><code>thumbnails/<Libretro_System>/Named_Boxarts/<rom_stem>.png</code></td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+              <td style="padding: 0.75rem 0.5rem;"><strong>GarlicOS / Anbernic Legacy</strong></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>Roms/</code></td>
+              <td style="padding: 0.75rem 0.5rem;">Short Codes (<code>FC, SFC, GBA, NDS, PS</code>)</td>
+              <td style="padding: 0.75rem 0.5rem;"><code>Roms/<CODE>/Imgs/<rom_stem>.png</code></td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+              <td style="padding: 0.75rem 0.5rem;"><strong>Miyoo Mini (OnionOS)</strong></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>Roms/</code></td>
+              <td style="padding: 0.75rem 0.5rem;">Short Codes (<code>FC, SFC, GBA, PS</code>)</td>
+              <td style="padding: 0.75rem 0.5rem;"><code>Roms/<CODE>/Imgs/<rom_stem>.png</code></td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+              <td style="padding: 0.75rem 0.5rem;"><strong>Daijishō Launcher</strong></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
+              <td style="padding: 0.75rem 0.5rem;">Standard IDs (<code>gba, nds, snes</code>)</td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/<sys>/thumbnails/<rom_stem>.png</code></td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border-subtle);">
+              <td style="padding: 0.75rem 0.5rem;"><strong>Pegasus Frontend</strong></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/</code></td>
+              <td style="padding: 0.75rem 0.5rem;">Standard IDs + <code>metadata.pegasus.txt</code></td>
+              <td style="padding: 0.75rem 0.5rem;"><code>roms/<sys>/media/<rom_stem>.png</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FAVORITES CURATION MODAL -->
+  <div class="modal-overlay" id="fav-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <span>⭐ Curate Favorites:</span>
+          <span style="color: var(--cyan);" id="modal-platform-title">Nintendo DS (NDS)</span>
+          <span class="badge badge-purple" id="modal-count-badge">18 Curated Selected</span>
+        </h3>
+        <button class="modal-close" onclick="closeFavoritesModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Left: Game List -->
+        <div>
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.85rem;">
+            <input type="text" placeholder="Search games in library..." style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); color: #fff; padding: 0.45rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem;">
+            <button class="btn" onclick="selectTopClassics()">Top Classics</button>
+            <button class="btn" onclick="toggleSelectAllModal(true)">All</button>
+          </div>
+
+          <div style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.4rem;" id="modal-game-list">
+            <!-- Game 1 -->
+            <div class="game-item selected" onclick="toggleGameItem(this, 'Chrono Trigger (Europe) (En,Fr).nds', 'Chrono Trigger', 'assets/chrono_trigger.png')">
+              <input type="checkbox" checked class="custom-checkbox">
+              <img src="assets/chrono_trigger.png" alt="Cover" class="game-boxart-thumb" onerror="this.src='assets/cardmaker_ui_mockup.jpg'">
+              <div class="game-info">
+                <div class="game-name">Chrono Trigger</div>
+                <div class="game-meta">134.2 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+              </div>
+            </div>
+
+            <!-- Game 2 -->
+            <div class="game-item selected" onclick="toggleGameItem(this, 'Castlevania - Dawn of Sorrow.nds', 'Castlevania - Dawn of Sorrow', 'assets/castlevania.png')">
+              <input type="checkbox" checked class="custom-checkbox">
+              <img src="assets/castlevania.png" alt="Cover" class="game-boxart-thumb" onerror="this.src='assets/cardmaker_ui_mockup.jpg'">
+              <div class="game-info">
+                <div class="game-name">Castlevania - Dawn of Sorrow</div>
+                <div class="game-meta">67.1 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+              </div>
+            </div>
+
+            <!-- Game 3 -->
+            <div class="game-item selected" onclick="toggleGameItem(this, 'Mario Kart DS.nds', 'Mario Kart DS', 'assets/cardmaker_ui_mockup.jpg')">
+              <input type="checkbox" checked class="custom-checkbox">
+              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🏎️</div>
+              <div class="game-info">
+                <div class="game-name">Mario Kart DS</div>
+                <div class="game-meta">33.5 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+              </div>
+            </div>
+
+            <!-- Game 4 -->
+            <div class="game-item selected" onclick="toggleGameItem(this, 'New Super Mario Bros.nds', 'New Super Mario Bros', 'assets/cardmaker_ui_mockup.jpg')">
+              <input type="checkbox" checked class="custom-checkbox">
+              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🍄</div>
+              <div class="game-info">
+                <div class="game-name">New Super Mario Bros</div>
+                <div class="game-meta">33.5 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+              </div>
+            </div>
+
+            <!-- Game 5 -->
+            <div class="game-item selected" onclick="toggleGameItem(this, 'Dragon Quest V - Hand of the Heavenly Bride.nds', 'Dragon Quest V', 'assets/cardmaker_ui_mockup.jpg')">
+              <input type="checkbox" checked class="custom-checkbox">
+              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🗡️</div>
+              <div class="game-info">
+                <div class="game-name">Dragon Quest V - Hand of the Heavenly Bride</div>
+                <div class="game-meta">134.2 MB • Has Save File (.SAV) • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+              </div>
+            </div>
+
+            <!-- Game 6 -->
+            <div class="game-item selected" onclick="toggleGameItem(this, 'Legend Of Zelda - Phantom Hourglass.nds', 'Legend of Zelda - Phantom Hourglass', 'assets/cardmaker_ui_mockup.jpg')">
+              <input type="checkbox" checked class="custom-checkbox">
+              <div class="game-boxart-thumb" style="display: flex; align-items: center; justify-content: center;">🛡️</div>
+              <div class="game-info">
+                <div class="game-name">Legend Of Zelda - Phantom Hourglass</div>
+                <div class="game-meta">67.1 MB • Found in <code>nds\Favorites\</code> • <span class="badge badge-green" style="font-size: 0.6rem;">Top Classic</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Live JSON & Boxart Preview -->
+        <div>
+          <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Live Generated <code>favorites.json</code>:</div>
+          <pre style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-subtle); padding: 0.75rem; border-radius: var(--radius-sm); font-family: 'Fira Code', monospace; font-size: 0.72rem; color: #a5f3fc; height: 350px; overflow-y: auto;" id="favorites-json-preview">{
+  "platform": "nds",
+  "title": "Essential NDS Classics",
+  "games": [
+    "Chrono Trigger (Europe) (En,Fr).nds",
+    "Castlevania - Dawn of Sorrow.nds",
+    "Mario Kart DS.nds",
+    "New Super Mario Bros.nds",
+    "Dragon Quest V - Hand of the Heavenly Bride.nds",
+    "Legend Of Zelda - Phantom Hourglass.nds"
+  ],
+  "patterns": [
+    "Chrono Trigger",
+    "Dawn of Sorrow",
+    "Mario Kart DS",
+    "New Super Mario",
+    "Dragon Quest V",
+    "Phantom Hourglass"
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div style="font-size: 0.8rem; color: var(--text-muted);" id="modal-save-status">
+          Target file: <code>C:\Users\Andreas\OneDrive\Roms\nds\favorites.json</code>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="btn" onclick="closeFavoritesModal()">Cancel</button>
+          <button class="btn btn-green" onclick="saveFavoritesModal()">💾 Save favorites.json</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX MODAL FOR SCREENSHOTS -->
+  <div class="modal-overlay" id="lightbox-modal" onclick="closeLightbox()">
+    <img id="lightbox-img" src="" alt="Enlarged Mockup" style="max-width: 90vw; max-height: 90vh; border-radius: 12px; border: 2px solid var(--cyan); box-shadow: 0 0 40px rgba(0, 240, 255, 0.4);">
+  </div>
+
+  <script>
+    let currentStep = 1;
+    let selectedDriveLetter = 'E:';
+    let isFormatting = true;
+    let selectedFs = 'exFAT';
+    let selectedProfileName = 'Anbernic RG DS Launcher';
+    let isInstalling = false;
+    let installInterval = null;
+
+    function switchMainView(viewName) {
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('view-interactive').style.display = viewName === 'interactive' ? 'block' : 'none';
+      document.getElementById('view-gallery').style.display = viewName === 'gallery' ? 'block' : 'none';
+      document.getElementById('view-spec').style.display = viewName === 'spec' ? 'block' : 'none';
+    }
+
+    function goToStep(stepNum) {
+      currentStep = stepNum;
+      document.querySelectorAll('.wizard-step').forEach((s, idx) => {
+        s.classList.remove('active');
+        if (idx + 1 === stepNum) s.classList.add('active');
+      });
+
+      document.querySelectorAll('.step-panel').forEach((p, idx) => {
+        p.classList.remove('active');
+        if (idx + 1 === stepNum) p.classList.add('active');
+      });
+    }
+
+    function selectDrive(elem, letter, fs, free, total, isProtected) {
+      document.querySelectorAll('.drive-option').forEach(d => d.classList.remove('selected'));
+      elem.classList.add('selected');
+      selectedDriveLetter = letter;
+
+      const formatSection = document.getElementById('format-section');
+      const systemWarning = document.getElementById('system-warning');
+      const fsSelectors = document.getElementById('fs-selectors');
+      const formatToggle = document.getElementById('format-toggle');
+
+      if (isProtected) {
+        systemWarning.style.display = 'block';
+        fsSelectors.style.display = 'none';
+        formatToggle.checked = false;
+        formatToggle.disabled = true;
+      } else {
+        systemWarning.style.display = 'none';
+        fsSelectors.style.display = formatToggle.checked ? 'block' : 'none';
+        formatToggle.disabled = false;
+      }
+
+      updateDestPathPreview();
+    }
+
+    function toggleFormatOption(checked) {
+      isFormatting = checked;
+      document.getElementById('fs-selectors').style.display = checked ? 'block' : 'none';
+    }
+
+    function chooseFs(fs) {
+      selectedFs = fs;
+      document.getElementById('fs-exfat').classList.remove('selected');
+      document.getElementById('fs-fat32').classList.remove('selected');
+      if (fs === 'exFAT') document.getElementById('fs-exfat').classList.add('selected');
+      else document.getElementById('fs-fat32').classList.add('selected');
+    }
+
+    function setSubfolder(name) {
+      document.getElementById('target-subfolder-input').value = name;
+      updateDestPathPreview();
+    }
+
+    function updateDestPathPreview() {
+      const sub = document.getElementById('target-subfolder-input').value.trim();
+      const preview = sub ? `${selectedDriveLetter}\\${sub}\\` : `${selectedDriveLetter}\\`;
+      document.getElementById('full-dest-preview').innerText = preview;
+    }
+
+    function selectProfile(elem, id, name, subfolder, pattern) {
+      document.querySelectorAll('.profile-card').forEach(p => p.classList.remove('selected'));
+      elem.classList.add('selected');
+      selectedProfileName = name;
+      document.getElementById('active-profile-badge').innerText = `${name} Selected`;
+      setSubfolder(subfolder);
+    }
+
+    function setMode(btn, mode) {
+      const parent = btn.parentElement;
+      parent.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function toggleAllPlatforms(checked) {
+      document.querySelectorAll('.platform-row .custom-checkbox').forEach(cb => cb.checked = checked);
+    }
+
+    function openFavoritesModal(platformId) {
+      document.getElementById('fav-modal').classList.add('active');
+    }
+
+    function closeFavoritesModal() {
+      document.getElementById('fav-modal').classList.remove('active');
+    }
+
+    function toggleGameItem(elem, filename, gameName, artPath) {
+      const cb = elem.querySelector('.custom-checkbox');
+      cb.checked = !cb.checked;
+      if (cb.checked) {
+        elem.classList.add('selected');
+      } else {
+        elem.classList.remove('selected');
+      }
+    }
+
+    function selectTopClassics() {
+      document.querySelectorAll('#modal-game-list .game-item').forEach(item => {
+        item.classList.add('selected');
+        item.querySelector('.custom-checkbox').checked = true;
+      });
+    }
+
+    function toggleSelectAllModal(val) {
+      document.querySelectorAll('#modal-game-list .game-item').forEach(item => {
+        if (val) item.classList.add('selected');
+        else item.classList.remove('selected');
+        item.querySelector('.custom-checkbox').checked = val;
+      });
+    }
+
+    function saveFavoritesModal() {
+      const status = document.getElementById('modal-save-status');
+      status.innerHTML = `<span style="color: var(--green);">✓ Saved favorites.json successfully! (18 games curated)</span>`;
+      setTimeout(() => {
+        closeFavoritesModal();
+        status.innerText = `Target file: C:\\Users\\Andreas\\OneDrive\\Roms\\nds\\favorites.json`;
+      }, 700);
+    }
+
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox-modal').classList.add('active');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox-modal').classList.remove('active');
+    }
+
+    // Simulated QuickInstaller Execution
+    function startSimulatedInstall() {
+      if (isInstalling) return;
+      isInstalling = true;
+
+      document.getElementById('start-btn').style.display = 'none';
+      document.getElementById('cancel-btn').style.display = 'inline-flex';
+      document.getElementById('install-status-badge').innerText = 'Running...';
+      document.getElementById('install-status-badge').className = 'badge badge-cyan';
+
+      let progress = 0;
+      const bar = document.getElementById('progress-bar');
+      const percentLabel = document.getElementById('progress-percent-label');
+      const phaseLabel = document.getElementById('progress-phase-label');
+      const fileLabel = document.getElementById('current-file-label');
+      const terminal = document.getElementById('terminal-body');
+
+      const log = (msg, type = 'info') => {
+        const time = new Date().toTimeString().split(' ')[0];
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        line.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">[${type.toUpperCase()}]</span> ${msg}`;
+        terminal.appendChild(line);
+        terminal.scrollTop = terminal.scrollHeight;
+      };
+
+      log('Starting QuickInstaller pipeline on ' + selectedDriveLetter, 'info');
+
+      if (isFormatting) {
+        log(`Formatting ${selectedDriveLetter} as ${selectedFs} (Volume Label: RETRO)...`, 'warn');
+        setTimeout(() => log(`Drive ${selectedDriveLetter} format verified. Cluster size: 128KB.`, 'success'), 900);
+      }
+
+      installInterval = setInterval(() => {
+        progress += 4;
+        if (progress > 100) progress = 100;
+
+        bar.style.width = progress + '%';
+        percentLabel.innerText = progress + '%';
+
+        if (progress === 15) {
+          phaseLabel.innerText = 'Phase: Creating Directory Hierarchy...';
+          log(`Created base layout: ${selectedDriveLetter}\\roms\\NDS, GBA, SFC, FC, PS, MD`, 'info');
+        } else if (progress === 30) {
+          phaseLabel.innerText = 'Phase: Copying Curated NDS Favorites...';
+          fileLabel.innerText = 'Copying Chrono Trigger (Europe).nds [134.2 MB]';
+          log('Copied: Chrono Trigger (Europe).nds + Matched Imgs/Chrono Trigger.png', 'success');
+        } else if (progress === 50) {
+          phaseLabel.innerText = 'Phase: Copying GBA Favorites & Saves...';
+          fileLabel.innerText = 'Copying Pokemon - Emerald Version.gba + Savefile';
+          log('Copied: Pokemon - Emerald Version.gba and synced to GBA/Imgs/', 'success');
+        } else if (progress === 70) {
+          phaseLabel.innerText = 'Phase: Syncing Libretro Boxarts...';
+          fileLabel.innerText = 'Downloading Castlevania - Aria of Sorrow.png from Libretro CDN';
+          log('Scraped Libretro Boxart: Castlevania - Aria of Sorrow (USA).png', 'success');
+        } else if (progress === 90) {
+          phaseLabel.innerText = 'Phase: Finalizing Metadata & Volume Cache...';
+          fileLabel.innerText = 'Writing favorites.json manifest and verifying filesystem...';
+          log('Verified 316 ROMs, 316 Boxarts, 14 Savefiles.', 'info');
+        } else if (progress >= 100) {
+          clearInterval(installInterval);
+          isInstalling = false;
+          phaseLabel.innerText = 'Complete: Installation Succeeded!';
+          fileLabel.innerText = 'All ROMs, Curated Favorites, and Boxarts are on your SD card.';
+          document.getElementById('install-status-badge').innerText = 'Complete';
+          document.getElementById('install-status-badge').className = 'badge badge-green';
+          document.getElementById('cancel-btn').style.display = 'none';
+          document.getElementById('start-btn').style.display = 'inline-flex';
+          document.getElementById('start-btn').innerText = '✓ Completed (Run Again)';
+          log('🎉 QuickInstaller successfully completed in 4.8s! Safe to eject SD Card.', 'success');
+        }
+      }, 180);
+    }
+
+    function cancelSimulatedInstall() {
+      if (!isInstalling) return;
+      clearInterval(installInterval);
+      isInstalling = false;
+      document.getElementById('progress-phase-label').innerText = 'Cancelled by user.';
+      document.getElementById('install-status-badge').innerText = 'Cancelled';
+      document.getElementById('install-status-badge').className = 'badge badge-red';
+      document.getElementById('cancel-btn').style.display = 'none';
+      document.getElementById('start-btn').style.display = 'inline-flex';
+      const terminal = document.getElementById('terminal-body');
+      const time = new Date().toTimeString().split(' ')[0];
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-warn">[CANCEL]</span> Operation cancelled.`;
+      terminal.appendChild(line);
+    }
+  </script>
+</body>
+</html>
