@@ -14,7 +14,7 @@ use crate::installer::{
     PlatformInstallConfig,
 };
 use crate::launcher_profiles::{LauncherProfile, ProfileId, PROFILES};
-use crate::platforms::{find_platform_by_dir_name, find_platform_by_id, PlatformInfo, PLATFORMS};
+use crate::platforms::{find_platform_by_dir_name, PlatformInfo, PLATFORMS};
 
 #[derive(Clone)]
 pub struct PlatformUiState {
@@ -26,8 +26,12 @@ pub struct PlatformUiState {
     pub favorites: Option<FavoritesList>,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ActiveTab {
+    Dashboard,
+    Consoles,
+    Favorites,
+    Settings,
     SdCard,
     Profile,
     Platforms,
@@ -41,23 +45,24 @@ pub enum ActiveTab {
 
 fn card_frame() -> egui::Frame {
     egui::Frame::new()
-        .fill(Color32::from_rgb(15, 20, 28))
-        .stroke(Stroke::new(1.0, Color32::from_rgb(28, 36, 50)))
+        .fill(Color32::from_rgb(13, 19, 28))
+        .stroke(Stroke::new(1.0, Color32::from_rgb(26, 37, 54)))
         .corner_radius(8)
         .inner_margin(Margin::same(12))
 }
 
 fn card_frame_selected() -> egui::Frame {
     egui::Frame::new()
-        .fill(Color32::from_rgb(16, 26, 38))
+        .fill(Color32::from_rgb(17, 28, 42))
         .stroke(Stroke::new(1.2, Color32::from_rgb(0, 229, 255)))
         .corner_radius(8)
         .inner_margin(Margin::same(12))
 }
 
+#[allow(dead_code)]
 fn card_frame_protected() -> egui::Frame {
     egui::Frame::new()
-        .fill(Color32::from_rgb(28, 14, 18))
+        .fill(Color32::from_rgb(31, 17, 21))
         .stroke(Stroke::new(1.2, Color32::from_rgb(239, 68, 68)))
         .corner_radius(8)
         .inner_margin(Margin::same(12))
@@ -78,7 +83,7 @@ fn badge_cyan(ui: &mut egui::Ui, text: &str) {
     render_badge(
         ui,
         text,
-        Color32::from_rgb(0, 35, 45),
+        Color32::from_rgb(0, 36, 48),
         Color32::from_rgb(0, 180, 210),
         Color32::from_rgb(0, 229, 255),
     );
@@ -88,7 +93,7 @@ fn badge_green(ui: &mut egui::Ui, text: &str) {
     render_badge(
         ui,
         text,
-        Color32::from_rgb(10, 32, 22),
+        Color32::from_rgb(10, 34, 22),
         Color32::from_rgb(16, 185, 129),
         Color32::from_rgb(16, 185, 129),
     );
@@ -136,31 +141,83 @@ fn render_card_header(ui: &mut egui::Ui, title: &str, badge_fn: impl FnOnce(&mut
     ui.add_space(6.0);
 }
 
-fn render_step_card(ui: &mut egui::Ui, step_num: &str, title: &str, desc: &str, is_active: bool) -> bool {
-    let frame = if is_active {
-        egui::Frame::new()
-            .fill(Color32::from_rgb(18, 28, 42))
-            .stroke(Stroke::new(1.5, Color32::from_rgb(0, 229, 255)))
-            .corner_radius(8)
-            .inner_margin(Margin::symmetric(10, 8))
-    } else {
-        egui::Frame::new()
-            .fill(Color32::from_rgb(15, 20, 28))
-            .stroke(Stroke::new(1.0, Color32::from_rgb(28, 36, 50)))
-            .corner_radius(8)
-            .inner_margin(Margin::symmetric(10, 8))
-    };
+// Custom iOS/Windows 11 styled Toggle Switch with Neon Cyan accent
+pub fn toggle_switch(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
+    let desired_size = Vec2::new(34.0, 18.0);
+    let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+    if response.clicked() {
+        *on = !*on;
+        response.mark_changed();
+    }
+    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, ui.is_enabled(), *on, ""));
 
-    let inner = frame.show(ui, |ui| {
-        ui.vertical(|ui| {
-            let num_color = if is_active { Color32::from_rgb(0, 229, 255) } else { Color32::from_gray(120) };
-            ui.label(RichText::new(step_num).size(9.5).color(num_color).strong());
-            ui.label(RichText::new(title).size(11.5).strong().color(if is_active { Color32::WHITE } else { Color32::from_gray(210) }));
-            ui.label(RichText::new(desc).size(10.0).color(Color32::from_gray(140)));
+    if ui.is_rect_visible(rect) {
+        let how_on = ui.ctx().animate_bool_responsive(response.id, *on);
+        let corner_radius = rect.height() / 2.0;
+        let bg_color = if *on {
+            Color32::from_rgb(0, 229, 255) // Neon cyan
+        } else {
+            Color32::from_rgb(28, 38, 54) // Dark slate
+        };
+        ui.painter().rect_filled(rect, corner_radius, bg_color);
+
+        let circle_x = egui::lerp((rect.left() + corner_radius)..=(rect.right() - corner_radius), how_on);
+        let center = egui::pos2(circle_x, rect.center().y);
+        let knob_color = if *on {
+            Color32::from_rgb(10, 14, 20)
+        } else {
+            Color32::from_rgb(140, 160, 185)
+        };
+        ui.painter().circle_filled(center, corner_radius - 2.0, knob_color);
+    }
+    response
+}
+
+// Glowing Sleek Neon Cyan Progress Bar
+fn render_neon_progress_bar(ui: &mut egui::Ui, label: &str, fraction: f32, extra_text: &str) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(label).size(10.5).strong().color(Color32::from_gray(200)));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.label(RichText::new(extra_text).size(10.5).strong().color(Color32::from_rgb(0, 229, 255)));
         });
     });
+    ui.add_space(2.0);
+    let height = 12.0;
+    let width = ui.available_width();
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), egui::Sense::hover());
+    if ui.is_rect_visible(rect) {
+        let radius = height / 2.0;
+        // Background track
+        ui.painter().rect_filled(rect, radius, Color32::from_rgb(16, 24, 36));
+        // Fill
+        let clamped = fraction.clamp(0.0, 1.0);
+        if clamped > 0.001 {
+            let fill_width = (rect.width() * clamped).max(height);
+            let fill_rect = egui::Rect::from_min_size(rect.min, Vec2::new(fill_width, height));
+            ui.painter().rect_filled(fill_rect, radius, Color32::from_rgb(0, 229, 255));
+        }
+    }
+    ui.add_space(5.0);
+}
 
-    let id = inner.response.id.with(format!("step_card_{}", step_num));
+// Glowing Curated Favorites Pill Button on Console rows
+fn curated_favorites_button(ui: &mut egui::Ui) -> bool {
+    let frame = egui::Frame::new()
+        .fill(Color32::from_rgb(0, 34, 46))
+        .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
+        .corner_radius(12)
+        .inner_margin(Margin::symmetric(8, 3));
+
+    let inner = frame.show(ui, |ui| {
+        ui.label(
+            RichText::new("⭐ CURATED FAVORITES")
+                .size(9.5)
+                .strong()
+                .color(Color32::from_rgb(0, 229, 255)),
+        );
+    });
+
+    let id = inner.response.id.with("curate_favs_btn");
     ui.interact(inner.response.rect, id, egui::Sense::click()).clicked()
 }
 
@@ -194,8 +251,9 @@ fn get_game_icon(rom_name: &str) -> &'static str {
 // ----------------------------------------------------------------------------
 
 pub struct RetroCardMakerApp {
-    // Tab Navigation
+    // Navigation & Layout
     pub active_tab: ActiveTab,
+    pub wizard_focused_step: usize,
 
     // Step 1: SD Card & Format
     pub drives: Vec<DriveInfo>,
@@ -210,9 +268,11 @@ pub struct RetroCardMakerApp {
     // Step 2: Launcher & Device Profile
     pub selected_profile_id: ProfileId,
 
-    // Step 3: Source & Platforms
+    // Step 3: Source, Platforms & Selection
     pub source_path: String,
     pub platform_states: Vec<PlatformUiState>,
+    pub selected_platform_idx: usize,
+    pub rom_search_query: String,
 
     // Step 4: Artwork
     pub download_art: bool,
@@ -229,7 +289,7 @@ pub struct RetroCardMakerApp {
     pub cancel_flag: Arc<AtomicBool>,
     pub event_rx: Option<Receiver<InstallerEvent>>,
 
-    // Modal: Favorites Editor
+    // Modal & Full-Screen: Favorites Editor
     pub editing_platform_idx: Option<usize>,
     pub editing_selected_games: HashSet<String>,
     pub editing_custom_patterns: Vec<String>,
@@ -237,6 +297,7 @@ pub struct RetroCardMakerApp {
     pub editing_show_selected_only: bool,
     pub new_favorite_pattern: String,
     pub favorites_save_notification: Option<String>,
+    pub favorites_preview_game: Option<String>,
 }
 
 impl RetroCardMakerApp {
@@ -246,7 +307,9 @@ impl RetroCardMakerApp {
         let profile = LauncherProfile::get_by_id(default_profile);
 
         let mut app = Self {
-            active_tab: ActiveTab::SdCard,
+            active_tab: ActiveTab::Dashboard,
+            wizard_focused_step: 1,
+
             drives,
             selected_drive_idx: 0,
             subfolder_name: profile.recommended_sd_subfolder.to_string(),
@@ -270,6 +333,8 @@ impl RetroCardMakerApp {
                     favorites: None,
                 })
                 .collect(),
+            selected_platform_idx: 0,
+            rom_search_query: String::new(),
 
             download_art: true,
 
@@ -279,8 +344,8 @@ impl RetroCardMakerApp {
             progress_total: 0,
             current_item: String::new(),
             logs: vec![
-                "[INIT] Retro CardMaker core engine ready.".to_string(),
-                "[DRIVE] Hardware scanner initialized.".to_string(),
+                "[INFO] Initializing Retro CardMaker v0.2.1 Core Engine...".to_string(),
+                "[INFO] Hardware drive scanner online. Removable protection active.".to_string(),
             ],
             install_summary: None,
             install_error: None,
@@ -294,9 +359,10 @@ impl RetroCardMakerApp {
             editing_show_selected_only: false,
             new_favorite_pattern: String::new(),
             favorites_save_notification: None,
+            favorites_preview_game: None,
         };
 
-        // Apply Refined Compact Desktop Dark Theme
+        // Apply Refined Compact Desktop AAA Dark Theme
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = Color32::from_rgb(9, 12, 16);
         visuals.window_fill = Color32::from_rgb(13, 18, 25);
@@ -323,6 +389,11 @@ impl RetroCardMakerApp {
             app.scan_source_folder();
         }
 
+        // Auto-select first platform that has found ROMs
+        if let Some(pos) = app.platform_states.iter().position(|p| !p.rom_files.is_empty()) {
+            app.selected_platform_idx = pos;
+        }
+
         app
     }
 
@@ -331,6 +402,7 @@ impl RetroCardMakerApp {
         if self.selected_drive_idx >= self.drives.len() && !self.drives.is_empty() {
             self.selected_drive_idx = 0;
         }
+        self.logs.push(format!("[DRIVE] Scanned {} storage volumes.", self.drives.len()));
     }
 
     pub fn scan_source_folder(&mut self) {
@@ -339,7 +411,6 @@ impl RetroCardMakerApp {
             return;
         }
 
-        // List subdirectories for flexible directory name matching
         let subdirs: Vec<PathBuf> = match std::fs::read_dir(root) {
             Ok(entries) => entries
                 .filter_map(|e| e.ok())
@@ -354,7 +425,6 @@ impl RetroCardMakerApp {
             p_state.rom_files.clear();
             p_state.favorites = None;
 
-            // 1. Check if any existing subdirectory matches this platform
             let mut matched_candidate = None;
             for subdir in &subdirs {
                 if let Some(dir_name) = subdir.file_name().and_then(|s| s.to_str()) {
@@ -367,7 +437,6 @@ impl RetroCardMakerApp {
                 }
             }
 
-            // 2. Direct alias candidate fallback
             if matched_candidate.is_none() {
                 for alias in p_state.platform.folder_aliases {
                     let candidate = root.join(alias);
@@ -406,6 +475,42 @@ impl RetroCardMakerApp {
                 p_state.rom_files.dedup();
             }
         }
+
+        let found_count = self.platform_states.iter().filter(|p| p.found_dir.is_some()).count();
+        let total_roms: usize = self.platform_states.iter().map(|p| p.rom_files.len()).sum();
+        self.logs.push(format!("[ROMS] Source library scanned: {} systems matched, {} ROMs loaded.", found_count, total_roms));
+    }
+
+    pub fn open_favorites_editor(&mut self, p_idx: usize) {
+        if p_idx >= self.platform_states.len() {
+            return;
+        }
+        self.editing_platform_idx = Some(p_idx);
+        self.editing_selected_games.clear();
+        self.editing_custom_patterns.clear();
+        self.editing_search_query.clear();
+        self.editing_show_selected_only = false;
+        self.favorites_save_notification = None;
+
+        let p_state = &self.platform_states[p_idx];
+        if let Some(ref favs) = p_state.favorites {
+            for g in &favs.games {
+                self.editing_selected_games.insert(g.clone());
+            }
+            for pat in &favs.patterns {
+                self.editing_custom_patterns.push(pat.clone());
+            }
+        } else {
+            let default_favs = FavoritesList::from_default_platform(&p_state.platform);
+            for g in &default_favs.games {
+                self.editing_selected_games.insert(g.clone());
+            }
+            for pat in &default_favs.patterns {
+                self.editing_custom_patterns.push(pat.clone());
+            }
+        }
+
+        self.favorites_preview_game = p_state.rom_files.first().cloned();
     }
 
     pub fn start_install(&mut self) {
@@ -476,7 +581,6 @@ impl RetroCardMakerApp {
         self.install_error = None;
         self.logs.clear();
         self.logs.push(format!("[INIT] Starting QuickInstaller for drive {}...", clean_drive));
-        self.active_tab = ActiveTab::Install;
 
         std::thread::spawn(move || {
             InstallerEngine::run(config, cancel_flag, tx);
@@ -530,11 +634,45 @@ impl eframe::App for RetroCardMakerApp {
             ui.ctx().request_repaint();
         }
 
-        // 1. Top Header Bar (Matching Mockup)
+        // 1. Top Windows 11 App Header with Navigation Tabs (Matching Mockup)
+        self.render_top_header(ui);
+
+        // 2. 5-Step Chevron Ribbon (Matching cardmaker_ui_mockup_1790889832082.jpg)
+        self.render_step_ribbon(ui);
+
+        ui.add_space(6.0);
+
+        // 3. Main Workspace Area
+        ScrollArea::vertical()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+                match self.active_tab {
+                    ActiveTab::Dashboard => self.render_dashboard_cockpit(ui),
+                    ActiveTab::Consoles | ActiveTab::Platforms => self.render_consoles_tab_view(ui),
+                    ActiveTab::Favorites => self.render_favorites_tab_view(ui),
+                    ActiveTab::Settings => self.render_settings_tab_view(ui),
+                    ActiveTab::SdCard => self.render_dashboard_cockpit(ui),
+                    ActiveTab::Profile => self.render_dashboard_cockpit(ui),
+                    ActiveTab::Artwork => self.render_dashboard_cockpit(ui),
+                    ActiveTab::Install => self.render_dashboard_cockpit(ui),
+                }
+            });
+
+        // 4. Curated Favorites Modal Dialog (Matching cardmaker_favorites_modal_1790889844749.jpg)
+        self.render_favorites_modal(ui);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Top Header & Step Ribbon Renderers
+// ----------------------------------------------------------------------------
+
+impl RetroCardMakerApp {
+    fn render_top_header(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                // Gradient-styled Brand Icon
+                // App Logo Icon
                 egui::Frame::new()
                     .fill(Color32::from_rgb(0, 160, 210))
                     .corner_radius(6)
@@ -553,836 +691,419 @@ impl eframe::App for RetroCardMakerApp {
 
                 render_badge(
                     ui,
-                    "v0.2.0",
+                    "Windows 11",
                     Color32::from_rgb(18, 24, 34),
                     Color32::from_rgb(45, 58, 78),
                     Color32::from_gray(180),
                 );
 
-                badge_cyan(ui, "SD QUICKINSTALLER");
-
                 ui.separator();
-                ui.label(
-                    RichText::new("SD-Card Formatter • Curated ROMs • Libretro Artwork Scraper")
-                        .size(11.0)
-                        .color(Color32::from_gray(160)),
-                );
+                ui.add_space(6.0);
 
+                // Navigation Tabs: [ ⊞ Dashboard ] [ 🖵 Consoles ] [ ⭐ Favorites ] [ ⚙ Settings ]
+                let tabs = [
+                    (ActiveTab::Dashboard, "⊞ Dashboard"),
+                    (ActiveTab::Consoles, "🖵 Consoles"),
+                    (ActiveTab::Favorites, "⭐ Favorites"),
+                    (ActiveTab::Settings, "⚙ Settings"),
+                ];
+
+                for (tab, title) in tabs {
+                    let is_active = self.active_tab == tab;
+                    let frame = if is_active {
+                        egui::Frame::new()
+                            .fill(Color32::from_rgb(20, 32, 48))
+                            .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
+                            .corner_radius(6)
+                            .inner_margin(Margin::symmetric(10, 4))
+                    } else {
+                        egui::Frame::new()
+                            .fill(Color32::from_rgb(12, 16, 24))
+                            .stroke(Stroke::new(1.0, Color32::from_rgb(26, 36, 50)))
+                            .corner_radius(6)
+                            .inner_margin(Margin::symmetric(10, 4))
+                    };
+
+                    let inner = frame.show(ui, |ui| {
+                        let text_color = if is_active {
+                            Color32::from_rgb(0, 229, 255)
+                        } else {
+                            Color32::from_gray(170)
+                        };
+                        ui.label(RichText::new(title).size(11.5).strong().color(text_color));
+                    });
+
+                    let id = inner.response.id.with(format!("top_tab_{:?}", tab));
+                    if ui.interact(inner.response.rect, id, egui::Sense::click()).clicked() {
+                        self.active_tab = tab;
+                    }
+                    ui.add_space(2.0);
+                }
+
+                // Right-aligned status pill
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let total_favs: usize = self
+                        .platform_states
+                        .iter()
+                        .map(|p| p.favorites.as_ref().map(|f| f.games.len()).unwrap_or(0))
+                        .sum();
                     render_badge(
                         ui,
-                        "Windows x64 Native",
-                        Color32::from_rgb(15, 20, 28),
-                        Color32::from_rgb(28, 36, 50),
-                        Color32::from_gray(160),
+                        &format!("👤 User • {} Favs ⌵", total_favs),
+                        Color32::from_rgb(22, 18, 38),
+                        Color32::from_rgb(139, 92, 246),
+                        Color32::from_rgb(180, 140, 255),
                     );
+
+                    if let Some(drive) = self.drives.get(self.selected_drive_idx) {
+                        let rem_tag = if drive.is_removable { "Removable" } else { "Fixed" };
+                        badge_cyan(ui, &format!("Target: {} ({} {})", drive.letter, drive.total_gb_str(), rem_tag));
+                    }
                 });
             });
             ui.add_space(4.0);
             ui.separator();
         });
+    }
 
-        // 2. Context Bar (Matching Mockup)
-        ui.add_space(4.0);
-        egui::Frame::new()
-            .fill(Color32::from_rgb(15, 20, 28))
-            .stroke(Stroke::new(1.0, Color32::from_rgb(28, 36, 50)))
-            .corner_radius(8)
-            .inner_margin(Margin::symmetric(12, 8))
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("Active Target Configuration")
-                                .size(12.0)
-                                .strong()
-                                .color(Color32::WHITE),
-                        );
-                        ui.label(
-                            RichText::new("Target Handheld SD Pipeline")
-                                .size(10.0)
-                                .color(Color32::from_gray(140)),
-                        );
-                    });
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        // Artwork CDN pill
-                        let art_str = if self.download_art {
-                            "Art: Libretro Raw CDN"
-                        } else {
-                            "Art: Disabled"
-                        };
-                        badge_green(ui, art_str);
-
-                        // ROM count pill
-                        let total_roms: usize = self
-                            .platform_states
-                            .iter()
-                            .filter(|p| p.enabled)
-                            .map(|p| match p.mode {
-                                CopyMode::AllRoms => p.rom_files.len(),
-                                CopyMode::FavoritesOnly => {
-                                    p.favorites.as_ref().map(|f| f.games.len()).unwrap_or(0)
-                                }
-                            })
-                            .sum();
-                        let active_platforms = self
-                            .platform_states
-                            .iter()
-                            .filter(|p| p.enabled && p.found_dir.is_some())
-                            .count();
-                        badge_purple(ui, &format!("ROMs: {} / {} Systems", total_roms, active_platforms));
-
-                        // Profile pill
-                        let profile = LauncherProfile::get_by_id(self.selected_profile_id);
-                        render_badge(
-                            ui,
-                            &format!("Profile: {}", profile.name),
-                            Color32::from_rgb(20, 25, 38),
-                            Color32::from_rgb(45, 58, 78),
-                            Color32::from_gray(200),
-                        );
-
-                        // Drive pill
-                        if let Some(drive) = self.drives.get(self.selected_drive_idx) {
-                            let rem_str = if drive.is_removable {
-                                "Removable"
-                            } else {
-                                "Fixed"
-                            };
-                            let size_gb = drive.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
-                            badge_cyan(
-                                ui,
-                                &format!(
-                                    "Drive: {} ({:.0} GB - {})",
-                                    drive.letter, size_gb, rem_str
-                                ),
-                            );
-                        }
-                    });
-                });
-            });
-
-        // 3. Wizard Step Bar (Matching Mockup 5-Column Cards)
-        ui.add_space(4.0);
+    fn render_step_ribbon(&mut self, ui: &mut egui::Ui) {
+        ui.add_space(2.0);
         ui.columns(5, |cols| {
             let steps = [
-                (
-                    ActiveTab::SdCard,
-                    "Step 1",
-                    "💾 SD Card & Format",
-                    "Target drive & safety guard",
-                ),
-                (
-                    ActiveTab::Profile,
-                    "Step 2",
-                    "🕹️ Device Profile",
-                    "Anbernic, ES-DE, RetroArch",
-                ),
-                (
-                    ActiveTab::Platforms,
-                    "Step 3",
-                    "📂 ROMs & Curate",
-                    "Full list vs Favorites.json",
-                ),
-                (
-                    ActiveTab::Artwork,
-                    "Step 4",
-                    "🖼️ Boxart Pipeline",
-                    "Local Imgs + Libretro CDN",
-                ),
-                (
-                    ActiveTab::Install,
-                    "Step 5",
-                    "🚀 QuickInstall",
-                    "Execute & progress logs",
-                ),
+                ("1", "❶ SD CARD & FORMAT", ActiveTab::Dashboard),
+                ("2", "❷ DEVICE PROFILE", ActiveTab::Dashboard),
+                ("3", "❸ ROMS & FAVORITES", ActiveTab::Dashboard),
+                ("4", "❹ BOXART SCRAPING", ActiveTab::Dashboard),
+                ("5", "❺ QUICKINSTALL", ActiveTab::Dashboard),
             ];
 
-            for (i, (tab, step_num, title, desc)) in steps.iter().enumerate() {
-                let is_active = self.active_tab == *tab;
-                if render_step_card(&mut cols[i], step_num, title, desc, is_active) {
-                    self.active_tab = *tab;
+            for (i, (_num, title, target_tab)) in steps.iter().enumerate() {
+                let col = &mut cols[i];
+                let is_active = self.wizard_focused_step == (i + 1);
+
+                let frame = if is_active {
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(0, 229, 255))
+                        .corner_radius(12)
+                        .inner_margin(Margin::symmetric(10, 6))
+                } else {
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(14, 20, 30))
+                        .stroke(Stroke::new(1.0, Color32::from_rgb(28, 40, 58)))
+                        .corner_radius(12)
+                        .inner_margin(Margin::symmetric(10, 6))
+                };
+
+                let inner = frame.show(col, |ui| {
+                    ui.centered_and_justified(|ui| {
+                        let text_color = if is_active {
+                            Color32::BLACK
+                        } else {
+                            Color32::from_gray(200)
+                        };
+                        ui.label(RichText::new(*title).size(10.5).strong().color(text_color));
+                    });
+                });
+
+                let id = inner.response.id.with(format!("ribbon_step_{}", i));
+                if col.interact(inner.response.rect, id, egui::Sense::click()).clicked() {
+                    self.wizard_focused_step = i + 1;
+                    self.active_tab = *target_tab;
                 }
             }
         });
-
         ui.add_space(4.0);
         ui.separator();
-
-        // 4. Main Tab Content in ScrollArea
-        ScrollArea::vertical()
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-                ui.add_space(6.0);
-                match self.active_tab {
-                    ActiveTab::SdCard => self.render_sd_card_tab(ui),
-                    ActiveTab::Profile => self.render_profile_tab(ui),
-                    ActiveTab::Platforms => self.render_platforms_tab(ui),
-                    ActiveTab::Artwork => self.render_artwork_tab(ui),
-                    ActiveTab::Install => self.render_install_tab(ui),
-                }
-            });
-
-        // 5. Supercharged Favorites Editor Modal
-        self.render_favorites_modal(ui);
     }
 }
 
 // ----------------------------------------------------------------------------
-// Step Tab Renderers
+// Master Studio Dashboard Cockpit (3 Tiers, Matching cardmaker_ui_mockup_1790889832082.jpg)
 // ----------------------------------------------------------------------------
 
 impl RetroCardMakerApp {
-    fn render_sd_card_tab(&mut self, ui: &mut egui::Ui) {
+    fn render_dashboard_cockpit(&mut self, ui: &mut egui::Ui) {
+        // TIER 1: SD Card & Format (Left) + Device Profile (Right)
         ui.columns(2, |cols| {
-            // Left Column: Target SD Card Selection & Format Settings
-            let ui = &mut cols[0];
+            self.render_card_sd_format(&mut cols[0]);
+            self.render_card_device_profile(&mut cols[1]);
+        });
 
-            card_frame().show(ui, |ui| {
-                render_card_header(ui, "Target SD Card Selection", |ui| {
-                    badge_cyan(ui, "Physical Storage");
+        ui.add_space(8.0);
+
+        // TIER 2: Consoles Selection (Left) + Live ROMs & Boxart Preview (Right)
+        ui.columns(2, |cols| {
+            self.render_card_consoles_selection(&mut cols[0]);
+            self.render_card_roms_preview(&mut cols[1]);
+        });
+
+        ui.add_space(8.0);
+
+        // TIER 3: QuickInstaller Cockpit (Left) + Live Terminal (Right)
+        ui.columns(2, |cols| {
+            self.render_card_installer_cockpit(&mut cols[0]);
+            self.render_card_terminal_console(&mut cols[1]);
+        });
+
+        ui.add_space(8.0);
+    }
+
+    // ------------------------------------------------------------------------
+    // Card 1: 1. SD Card & Format
+    // ------------------------------------------------------------------------
+    fn render_card_sd_format(&mut self, ui: &mut egui::Ui) {
+        card_frame().show(ui, |ui| {
+            let selected_drive = self.drives.get(self.selected_drive_idx).cloned();
+            let is_removable = selected_drive.as_ref().map(|d| d.is_removable).unwrap_or(false);
+            let is_system = selected_drive.as_ref().map(|d| d.is_system).unwrap_or(false);
+            let has_hidden = selected_drive.as_ref().map(|d| d.has_hidden_partitions).unwrap_or(false);
+
+            render_card_header(ui, "1. SD Card & Format", |ui| {
+                if is_removable {
+                    badge_cyan(ui, "💾 CONNECTED");
+                } else if is_system {
+                    badge_red(ui, "🛡️ SYSTEM DRIVE");
+                } else if self.drives.is_empty() {
+                    badge_red(ui, "❌ NO DRIVE");
+                } else {
+                    badge_amber(ui, "⚠️ FIXED DISK");
+                }
+            });
+
+            // Target drive dropdown combo
+            ui.label(RichText::new("Target Storage Drive:").size(10.5).color(Color32::from_gray(160)));
+            ui.horizontal(|ui| {
+                let drive_display = if let Some(ref d) = selected_drive {
+                    let label_str = if d.label.is_empty() { "NO NAME" } else { &d.label };
+                    let type_str = if d.is_removable { "Removable" } else if d.is_system { "System" } else { "Fixed" };
+                    format!("{}: {} {} ({})", d.letter.trim_end_matches('\\'), d.total_gb_str(), type_str, label_str)
+                } else {
+                    "No drive detected".to_string()
+                };
+
+                egui::ComboBox::from_id_salt("dashboard_drive_combo")
+                    .width(ui.available_width() - 85.0)
+                    .selected_text(RichText::new(&drive_display).size(11.5).strong().color(Color32::WHITE))
+                    .show_ui(ui, |ui| {
+                        for (idx, drive) in self.drives.iter().enumerate() {
+                            let label_str = if drive.label.is_empty() { "NO NAME" } else { &drive.label };
+                            let type_str = if drive.is_removable { "Removable" } else if drive.is_system { "System" } else { "Fixed" };
+                            let text = format!("{}: {} {} ({}) - {}", drive.letter.trim_end_matches('\\'), drive.total_gb_str(), type_str, label_str, drive.file_system);
+                            ui.selectable_value(&mut self.selected_drive_idx, idx, text);
+                        }
+                    });
+
+                if ui.button(RichText::new("🔄 Refresh").size(10.5)).clicked() {
+                    self.refresh_drives();
+                }
+            });
+
+            ui.add_space(8.0);
+
+            // Row 2: Current Filesystem & Safety Lock on left, Format toggles on right
+            ui.columns(2, |fcols| {
+                // Left Subcolumn
+                let left_ui = &mut fcols[0];
+                left_ui.vertical(|ui| {
+                    ui.label(RichText::new("Current file system").size(10.0).color(Color32::from_gray(140)));
+                    let fs_text = selected_drive.as_ref().map(|d| d.file_system.as_str()).unwrap_or("Unknown");
+                    ui.label(RichText::new(fs_text).size(14.0).strong().color(Color32::WHITE));
+                    ui.add_space(4.0);
+
+                    // Safety Lock Badge
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(0, 32, 42))
+                        .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
+                        .corner_radius(12)
+                        .inner_margin(Margin::symmetric(8, 4))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("🛡️ SAFETY LOCK").size(10.0).strong().color(Color32::from_rgb(0, 229, 255)));
+                            });
+                        });
                 });
 
-                if self.drives.is_empty() {
-                    ui.colored_label(Color32::RED, "No storage drives found!");
-                } else {
-                    for (idx, drive) in self.drives.iter().enumerate() {
-                        let is_sel = self.selected_drive_idx == idx;
-                        let is_sys = drive.is_system;
+                // Right Subcolumn: Format toggles
+                let right_ui = &mut fcols[1];
+                right_ui.vertical(|ui| {
+                    if !is_removable || is_system {
+                        ui.colored_label(Color32::from_rgb(239, 68, 68), "Formatting is strictly locked for internal and system drives.");
+                    } else {
+                        // Format as FAT32
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Format as FAT32").size(11.0).color(Color32::from_gray(210)));
+                            let mut fat32_on = self.do_format && self.format_fs == FormatFileSystem::Fat32;
+                            if toggle_switch(ui, &mut fat32_on).changed() {
+                                if fat32_on {
+                                    self.do_format = true;
+                                    self.format_fs = FormatFileSystem::Fat32;
+                                } else if self.format_fs == FormatFileSystem::Fat32 {
+                                    self.do_format = false;
+                                }
+                            }
+                        });
 
+                        ui.add_space(4.0);
+
+                        // Format as exFAT
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Format as exFAT").size(11.0).color(Color32::from_gray(210)));
+                            let mut exfat_on = self.do_format && self.format_fs == FormatFileSystem::ExFat;
+                            if toggle_switch(ui, &mut exfat_on).changed() {
+                                if exfat_on {
+                                    self.do_format = true;
+                                    self.format_fs = FormatFileSystem::ExFat;
+                                } else if self.format_fs == FormatFileSystem::ExFat {
+                                    self.do_format = false;
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+
+            // If drive has hidden/foreign partitions, show Diskpart MBR clean wipe
+            if self.do_format && is_removable && !is_system {
+                ui.add_space(6.0);
+                if has_hidden {
+                    let phys_str = selected_drive.as_ref().map(|d| d.physical_gb_str()).unwrap_or_default();
+                    let vol_str = selected_drive.as_ref().map(|d| d.total_gb_str()).unwrap_or_default();
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(38, 26, 10))
+                        .stroke(Stroke::new(1.0, Color32::from_rgb(245, 158, 11)))
+                        .corner_radius(6)
+                        .inner_margin(Margin::same(6))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("⚠️").size(12.0));
+                                ui.label(RichText::new(format!("Hidden partitions detected: Volume is {} but card is {}.", vol_str, phys_str)).size(10.0).color(Color32::from_rgb(255, 200, 100)));
+                            });
+                        });
+                    ui.add_space(4.0);
+                }
+
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Full Repartition & Clean Wipe (Diskpart MBR)").size(10.5).color(Color32::WHITE));
+                    toggle_switch(ui, &mut self.wipe_and_repartition);
+                    if has_hidden {
+                        badge_amber(ui, "Recommended");
+                    }
+                });
+
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Volume Label:").size(10.5).color(Color32::from_gray(160)));
+                    ui.text_edit_singleline(&mut self.volume_label);
+                    ui.checkbox(&mut self.format_confirmed, RichText::new("Confirm Erase").size(10.0).color(Color32::from_rgb(255, 180, 100)));
+                });
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Card 2: 2. Device Profile
+    // ------------------------------------------------------------------------
+    fn render_card_device_profile(&mut self, ui: &mut egui::Ui) {
+        card_frame().show(ui, |ui| {
+            let active_profile = LauncherProfile::get_by_id(self.selected_profile_id);
+            render_card_header(ui, "2. Device Profile", |ui| {
+                badge_purple(ui, &format!("🕹️ {}", active_profile.name));
+            });
+
+            // Horizontal Profile Cards Grid
+            ScrollArea::horizontal().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    for profile in PROFILES.iter() {
+                        let is_sel = self.selected_profile_id == profile.id;
                         let frame = if is_sel {
                             card_frame_selected()
-                        } else if is_sys {
-                            card_frame_protected()
                         } else {
                             egui::Frame::new()
-                                .fill(Color32::from_rgb(10, 14, 20))
-                                .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                                .corner_radius(6)
-                                .inner_margin(Margin::symmetric(10, 8))
+                                .fill(Color32::from_rgb(10, 15, 22))
+                                .stroke(Stroke::new(1.0, Color32::from_rgb(26, 36, 52)))
+                                .corner_radius(8)
+                                .inner_margin(Margin::same(8))
+                        };
+
+                        let icon = match profile.id {
+                            ProfileId::AnbernicRgDsLauncher => "📱",
+                            ProfileId::EmulationStationEsDe => "🖵",
+                            ProfileId::RetroArch => "👾",
+                            ProfileId::AnbernicOlderGarlicOs => "🧄",
+                            ProfileId::MiyooMiniOnionOs => "🧅",
+                            ProfileId::Daijisho => "📱",
+                            ProfileId::Pegasus => "🎠",
+                            ProfileId::BatoceraArkOs => "🦇",
+                            ProfileId::Custom => "⚙️",
+                        };
+
+                        let short_name = match profile.id {
+                            ProfileId::AnbernicRgDsLauncher => "ANBERNIC RG DS",
+                            ProfileId::EmulationStationEsDe => "EMULATIONSTATION",
+                            ProfileId::RetroArch => "RETROARCH",
+                            ProfileId::AnbernicOlderGarlicOs => "GARLICOS",
+                            ProfileId::MiyooMiniOnionOs => "MIYOO ONION",
+                            ProfileId::Daijisho => "DAIJISHO",
+                            ProfileId::Pegasus => "PEGASUS",
+                            ProfileId::BatoceraArkOs => "BATOCERA",
+                            ProfileId::Custom => "CUSTOM",
                         };
 
                         let inner = frame.show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                let icon = if is_sys { "🛡️" } else { "💾" };
-                                ui.label(RichText::new(icon).size(16.0));
-                                ui.vertical(|ui| {
-                                    let label_str = if drive.label.is_empty() {
-                                        "SD_CARD"
-                                    } else {
-                                        &drive.label
-                                    };
-                                    ui.label(
-                                        RichText::new(format!("{} [{}]", drive.letter, label_str))
-                                            .size(11.5)
-                                            .strong()
-                                            .color(Color32::WHITE),
-                                    );
-                                    let type_str = if drive.is_system {
-                                        "System Disk"
-                                    } else if drive.is_removable {
-                                        "Removable SD/USB"
-                                    } else {
-                                        "Fixed Disk"
-                                    };
-                                    let mut details = format!(
-                                        "{} • {} • Free: {} / {}",
-                                        type_str,
-                                        drive.file_system,
-                                        drive.free_gb_str(),
-                                        drive.total_gb_str()
-                                    );
-                                    if drive.has_hidden_partitions {
-                                        details.push_str(&format!(" (Physical: {})", drive.physical_gb_str()));
-                                    }
-                                    ui.label(
-                                        RichText::new(details)
-                                            .size(10.0)
-                                            .color(Color32::from_gray(150)),
-                                    );
-                                });
-
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        if is_sys {
-                                            badge_red(ui, "PROTECTED");
-                                        } else if drive.has_hidden_partitions {
-                                            badge_amber(ui, "Hidden Partitions");
-                                        } else if drive.is_removable {
-                                            badge_green(ui, "Recommended");
-                                        }
-                                    },
-                                );
-                            });
-                        });
-
-                        let id = inner.response.id.with(format!("drive_opt_{}", idx));
-                        if ui
-                            .interact(inner.response.rect, id, egui::Sense::click())
-                            .clicked()
-                        {
-                            self.selected_drive_idx = idx;
-                        }
-                        ui.add_space(4.0);
-                    }
-                }
-
-                ui.add_space(4.0);
-                if ui.button(RichText::new("🔄 Refresh Drives").size(11.0)).clicked() {
-                    self.refresh_drives();
-                }
-
-                ui.add_space(8.0);
-
-                // Format Settings Subcard
-                let selected_drive = self.drives.get(self.selected_drive_idx).cloned();
-                let is_removable = selected_drive.as_ref().map(|d| d.is_removable).unwrap_or(false);
-                let is_system = selected_drive.as_ref().map(|d| d.is_system).unwrap_or(false);
-                let has_hidden = selected_drive.as_ref().map(|d| d.has_hidden_partitions).unwrap_or(false);
-
-                egui::Frame::new()
-                    .fill(Color32::from_rgb(10, 14, 20))
-                    .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                    .corner_radius(6)
-                    .inner_margin(Margin::same(10))
-                    .show(ui, |ui| {
-                        if !is_removable || is_system {
-                            // Non-removable or system drives: FORMAT STRICTLY LOCKED
-                            ui.horizontal(|ui| {
-                                ui.vertical(|ui| {
-                                    ui.label(
-                                        RichText::new("Format SD-Card / USB Drive")
-                                            .size(11.5)
-                                            .strong()
-                                            .color(Color32::from_gray(160)),
-                                    );
-                                    ui.label(
-                                        RichText::new("Formatting is disabled for fixed and internal system drives.")
-                                            .size(10.0)
-                                            .color(Color32::from_gray(120)),
-                                    );
-                                });
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        let mut disabled_fmt = false;
-                                        ui.add_enabled(false, egui::Checkbox::new(&mut disabled_fmt, ""));
-                                    },
-                                );
-                            });
-
-                            ui.add_space(6.0);
-                            egui::Frame::new()
-                                .fill(Color32::from_rgb(32, 16, 18))
-                                .stroke(Stroke::new(1.0, Color32::from_rgb(180, 50, 50)))
-                                .corner_radius(6)
-                                .inner_margin(Margin::same(8))
-                                .show(ui, |ui| {
-                                    ui.label(
-                                        RichText::new(
-                                            "🔒 FORMAT LOCKED: Formatting is strictly restricted to removable USB and SD-card drives.\nSystem disks (C:) and fixed internal NVMe/SSDs cannot be formatted.",
-                                        )
-                                        .size(10.5)
-                                        .color(Color32::from_rgb(255, 160, 160)),
-                                    );
-                                });
-                        } else {
-                            // Removable drive: Format allowed
-                            ui.horizontal(|ui| {
-                                ui.vertical(|ui| {
-                                    ui.label(
-                                        RichText::new("Format SD-Card before copying")
-                                            .size(11.5)
-                                            .strong()
-                                            .color(Color32::WHITE),
-                                    );
-                                    ui.label(
-                                        RichText::new(
-                                            "Formats storage cleanly with optimal cluster allocation.",
-                                        )
-                                        .size(10.0)
-                                        .color(Color32::from_gray(140)),
-                                    );
-                                });
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        ui.checkbox(&mut self.do_format, "");
-                                    },
-                                );
-                            });
-
-                            if self.do_format {
-                                ui.add_space(6.0);
-
-                                // If drive has hidden partitions:
-                                if has_hidden {
-                                    let phys_str = selected_drive.as_ref().map(|d| d.physical_gb_str()).unwrap_or_default();
-                                    let vol_str = selected_drive.as_ref().map(|d| d.total_gb_str()).unwrap_or_default();
-                                    egui::Frame::new()
-                                        .fill(Color32::from_rgb(42, 28, 10))
-                                        .stroke(Stroke::new(1.0, Color32::from_rgb(245, 158, 11)))
-                                        .corner_radius(6)
-                                        .inner_margin(Margin::same(8))
-                                        .show(ui, |ui| {
-                                            ui.horizontal(|ui| {
-                                                ui.label(RichText::new("⚠️").size(14.0));
-                                                ui.vertical(|ui| {
-                                                    ui.label(
-                                                        RichText::new("Hidden / Foreign Partitions Detected!")
-                                                            .size(11.0)
-                                                            .strong()
-                                                            .color(Color32::from_rgb(255, 200, 100)),
-                                                    );
-                                                    ui.label(
-                                                        RichText::new(format!(
-                                                            "Volume shows {} but physical card is {}. Unallocated/Linux ext4 partitions are trapping capacity (from prior handheld OS like OnionOS, GarlicOS, ArkOS).",
-                                                            vol_str, phys_str
-                                                        ))
-                                                        .size(9.5)
-                                                        .color(Color32::from_gray(200)),
-                                                    );
-                                                });
-                                            });
-                                        });
-                                    ui.add_space(6.0);
-                                }
-
-                                // Full Repartition & Clean Wipe (Diskpart MBR) Checkbox
-                                let is_wipe = self.wipe_and_repartition;
-                                egui::Frame::new()
-                                    .fill(if is_wipe { Color32::from_rgb(20, 28, 38) } else { Color32::from_rgb(14, 18, 26) })
-                                    .stroke(Stroke::new(1.0, if is_wipe { Color32::from_rgb(0, 229, 255) } else { Color32::from_rgb(32, 42, 58) }))
-                                    .corner_radius(6)
-                                    .inner_margin(Margin::same(8))
-                                    .show(ui, |ui| {
-                                        ui.horizontal(|ui| {
-                                            let text_color = if is_wipe { Color32::from_rgb(0, 229, 255) } else { Color32::WHITE };
-                                            ui.checkbox(
-                                                &mut self.wipe_and_repartition,
-                                                RichText::new("Full Repartition & Clean Wipe (Diskpart MBR)")
-                                                    .size(11.0)
-                                                    .strong()
-                                                    .color(text_color),
-                                            );
-                                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                                if has_hidden {
-                                                    badge_amber(ui, "Recommended");
-                                                } else {
-                                                    badge_cyan(ui, "Deep Clean");
-                                                }
-                                            });
-                                        });
-                                        ui.label(
-                                            RichText::new("Wipes all partition tables, deletes hidden Linux/ext4/recovery partitions, converts to standard MBR, and restores 100% of physical capacity into a single active partition.")
-                                                .size(9.5)
-                                                .color(Color32::from_gray(150)),
-                                        );
-                                    });
-
-                                ui.add_space(8.0);
-
-                                // Format selection: exFAT vs FAT32 with detailed sizing & limits
-                                ui.label(
-                                    RichText::new("Choose Filesystem & Sizing Guide:")
-                                        .size(11.0)
-                                        .strong()
-                                        .color(Color32::WHITE),
-                                );
-                                ui.add_space(4.0);
-
-                                ui.columns(2, |fcols| {
-                                    // exFAT Box
-                                    let exfat_sel = self.format_fs == FormatFileSystem::ExFat;
-                                    let frame1 = if exfat_sel {
-                                        card_frame_selected()
-                                    } else {
-                                        card_frame()
-                                    };
-                                    let inner1 = frame1.show(&mut fcols[0], |ui| {
-                                        ui.vertical(|ui| {
-                                            ui.horizontal(|ui| {
-                                                ui.label(
-                                                    RichText::new("exFAT")
-                                                        .size(11.0)
-                                                        .strong()
-                                                        .color(if exfat_sel {
-                                                            Color32::from_rgb(0, 229, 255)
-                                                        } else {
-                                                            Color32::WHITE
-                                                        }),
-                                                );
-                                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                                    badge_cyan(ui, "Modern 64GB+");
-                                                });
-                                            });
-                                            ui.add_space(2.0);
-                                            ui.label(
-                                                RichText::new("• Best for 64GB, 128GB, 256GB, 512GB+\n• No 4GB single file size limit\n• Ideal for PS2, Wii, PSP ISOs & CHD\n• Supported by RG Cube, Odin, Deck, Switch")
-                                                    .size(9.5)
-                                                    .color(Color32::from_gray(140)),
-                                            );
-                                        });
-                                    });
-                                    let id1 = inner1.response.id.with("fs_exfat_btn");
-                                    if fcols[0]
-                                        .interact(inner1.response.rect, id1, egui::Sense::click())
-                                        .clicked()
-                                    {
-                                        self.format_fs = FormatFileSystem::ExFat;
-                                    }
-
-                                    // FAT32 Box
-                                    let fat32_sel = self.format_fs == FormatFileSystem::Fat32;
-                                    let frame2 = if fat32_sel {
-                                        card_frame_selected()
-                                    } else {
-                                        card_frame()
-                                    };
-                                    let inner2 = frame2.show(&mut fcols[1], |ui| {
-                                        ui.vertical(|ui| {
-                                            ui.horizontal(|ui| {
-                                                ui.label(
-                                                    RichText::new("FAT32")
-                                                        .size(11.0)
-                                                        .strong()
-                                                        .color(if fat32_sel {
-                                                            Color32::from_rgb(0, 229, 255)
-                                                        } else {
-                                                            Color32::WHITE
-                                                        }),
-                                                );
-                                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                                    badge_purple(ui, "Legacy ≤32GB");
-                                                });
-                                            });
-                                            ui.add_space(2.0);
-                                            ui.label(
-                                                RichText::new("• Best for cards ≤ 32 GB\n• Strict 4GB file size limit (games >4GB fail)\n• Required by older microcontrollers\n• Miyoo Mini, RG350, GarlicOS, TrimUI")
-                                                    .size(9.5)
-                                                    .color(Color32::from_gray(140)),
-                                            );
-                                        });
-                                    });
-                                    let id2 = inner2.response.id.with("fs_fat32_btn");
-                                    if fcols[1]
-                                        .interact(inner2.response.rect, id2, egui::Sense::click())
-                                        .clicked()
-                                    {
-                                        self.format_fs = FormatFileSystem::Fat32;
-                                    }
-                                });
-
-                                // Smart Recommendation Banner based on selected drive size
-                                ui.add_space(6.0);
-                                if let Some(drive) = selected_drive.as_ref() {
-                                    let total_bytes = drive.physical_disk_size.unwrap_or(drive.total_bytes);
-                                    let total_gb = total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
-                                    if total_gb > 32.5 {
-                                        egui::Frame::new()
-                                            .fill(Color32::from_rgb(10, 24, 30))
-                                            .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
-                                            .corner_radius(6)
-                                            .inner_margin(Margin::same(8))
-                                            .show(ui, |ui| {
-                                                ui.label(
-                                                    RichText::new(format!(
-                                                        "💡 Recommendation for this {:.0}GB card: Use exFAT. Windows format natively limits FAT32 to 32GB, and exFAT allows large games (>4GB like PS2/GameCube/Wii/PSP ISOs).",
-                                                        total_gb
-                                                    ))
-                                                    .size(10.0)
-                                                    .color(Color32::from_rgb(0, 229, 255)),
-                                                );
-                                            });
-                                    } else {
-                                        egui::Frame::new()
-                                            .fill(Color32::from_rgb(18, 16, 28))
-                                            .stroke(Stroke::new(1.0, Color32::from_rgb(139, 92, 246)))
-                                            .corner_radius(6)
-                                            .inner_margin(Margin::same(8))
-                                            .show(ui, |ui| {
-                                                ui.label(
-                                                    RichText::new(format!(
-                                                        "💡 Recommendation for this {:.0}GB card: FAT32 provides maximum compatibility for older handhelds (Miyoo, RG35XX, GarlicOS). If your device supports Android or PC, exFAT is also suitable.",
-                                                        total_gb
-                                                    ))
-                                                    .size(10.0)
-                                                    .color(Color32::from_rgb(190, 160, 255)),
-                                                );
-                                            });
-                                    }
-                                }
-
-                                ui.add_space(6.0);
+                            ui.set_width(116.0);
+                            ui.set_height(82.0);
+                            ui.vertical_centered(|ui| {
+                                // Radio dot indicator on top-right
                                 ui.horizontal(|ui| {
-                                    ui.label(
-                                        RichText::new("Volume Label:")
-                                            .size(11.0)
-                                            .color(Color32::from_gray(180)),
-                                    );
-                                    ui.text_edit_singleline(&mut self.volume_label);
+                                    ui.add_space(80.0);
+                                    if is_sel {
+                                        ui.label(RichText::new("🔘").size(10.0).color(Color32::from_rgb(0, 229, 255)));
+                                    } else {
+                                        ui.label(RichText::new("⚪").size(10.0).color(Color32::from_gray(80)));
+                                    }
                                 });
 
-                                ui.add_space(4.0);
-                                ui.checkbox(
-                                    &mut self.format_confirmed,
-                                    RichText::new(
-                                        "I understand formatting will erase all data on this target drive.",
-                                    )
-                                    .size(10.5)
-                                    .color(Color32::from_rgb(255, 180, 100)),
-                                );
-                            }
-                        }
-                    });
-            });
-
-            // Right Column: Destination Subfolder Card
-            let ui = &mut cols[1];
-            card_frame().show(ui, |ui| {
-                render_card_header(ui, "Destination Subfolder", |ui| {
-                    badge_purple(ui, "SD Layout");
-                });
-
-                ui.label(
-                    RichText::new("Target Subfolder:")
-                        .size(11.5)
-                        .strong()
-                        .color(Color32::WHITE),
-                );
-                ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut self.subfolder_name);
-                    if ui.button(RichText::new("roms").size(11.0)).clicked() {
-                        self.subfolder_name = "roms".to_string();
-                    }
-                    if ui.button(RichText::new("Roms").size(11.0)).clicked() {
-                        self.subfolder_name = "Roms".to_string();
-                    }
-                    if ui.button(RichText::new("Root").size(11.0)).clicked() {
-                        self.subfolder_name = String::new();
-                    }
-                });
-
-                ui.add_space(8.0);
-                let drive_prefix = self
-                    .drives
-                    .get(self.selected_drive_idx)
-                    .map(|d| d.letter.as_str())
-                    .unwrap_or("E:\\");
-                let clean_prefix = drive_prefix.trim_end_matches('\\').trim_end_matches('/');
-                let preview_path = if self.subfolder_name.trim().is_empty() {
-                    format!("{}\\", clean_prefix)
-                } else {
-                    format!("{}\\{}\\", clean_prefix, self.subfolder_name.trim())
-                };
-
-                egui::Frame::new()
-                    .fill(Color32::from_rgb(8, 12, 18))
-                    .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                    .corner_radius(6)
-                    .inner_margin(Margin::same(8))
-                    .show(ui, |ui| {
-                        ui.label(
-                            RichText::new("Full Destination Base:")
-                                .size(10.5)
-                                .color(Color32::from_gray(140)),
-                        );
-                        ui.label(
-                            RichText::new(preview_path)
-                                .size(12.0)
-                                .monospace()
-                                .strong()
-                                .color(Color32::from_rgb(0, 229, 255)),
-                        );
-                    });
-
-                ui.add_space(8.0);
-                ui.label(
-                    RichText::new("💡 Profile Matches:")
-                        .size(11.0)
-                        .strong()
-                        .color(Color32::from_gray(190)),
-                );
-                ui.label(
-                    RichText::new("• Anbernic RG DS Launcher: E:\\roms\\NDS, GBA, SFC, FC")
-                        .size(10.0)
-                        .color(Color32::from_gray(150)),
-                );
-                ui.label(
-                    RichText::new("• Miyoo Mini (OnionOS): E:\\Roms\\GBA, FC, SFC")
-                        .size(10.0)
-                        .color(Color32::from_gray(150)),
-                );
-                ui.label(
-                    RichText::new("• EmulationStation (ES-DE): E:\\roms\\nds, gba, snes")
-                        .size(10.0)
-                        .color(Color32::from_gray(150)),
-                );
-
-                ui.add_space(16.0);
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let next_btn = egui::Button::new(
-                        RichText::new("Proceed to Device Profiles →")
-                            .size(11.5)
-                            .strong()
-                            .color(Color32::WHITE),
-                    )
-                    .fill(Color32::from_rgb(0, 110, 200));
-
-                    if ui.add(next_btn).clicked() {
-                        self.active_tab = ActiveTab::Profile;
-                    }
-                });
-            });
-        });
-    }
-
-    fn render_profile_tab(&mut self, ui: &mut egui::Ui) {
-        card_frame().show(ui, |ui| {
-            let active_profile = LauncherProfile::get_by_id(self.selected_profile_id);
-            render_card_header(ui, "Select Emulation Frontend / Device Launcher", |ui| {
-                badge_purple(ui, &format!("{} Selected", active_profile.name));
-            });
-            ui.label(
-                RichText::new(
-                    "Adjusts directory naming codes and boxart destination rules automatically.",
-                )
-                .size(10.5)
-                .color(Color32::from_gray(150)),
-            );
-            ui.add_space(8.0);
-
-            ui.columns(2, |cols| {
-                for (p_idx, profile) in PROFILES.iter().enumerate() {
-                    let col = &mut cols[p_idx % 2];
-                    let is_sel = self.selected_profile_id == profile.id;
-
-                    let frame = if is_sel {
-                        card_frame_selected()
-                    } else {
-                        egui::Frame::new()
-                            .fill(Color32::from_rgb(10, 14, 20))
-                            .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                            .corner_radius(6)
-                            .inner_margin(Margin::same(10))
-                    };
-
-                    let icon = match profile.id {
-                        ProfileId::AnbernicRgDsLauncher => "🕹️",
-                        ProfileId::EmulationStationEsDe => "🎮",
-                        ProfileId::RetroArch => "👾",
-                        ProfileId::AnbernicOlderGarlicOs => "🧄",
-                        ProfileId::MiyooMiniOnionOs => "🧅",
-                        ProfileId::Daijisho => "📱",
-                        ProfileId::Pegasus => "🎠",
-                        ProfileId::BatoceraArkOs => "🦇",
-                        ProfileId::Custom => "⚙️",
-                    };
-
-                    let tag_str = match profile.id {
-                        ProfileId::AnbernicRgDsLauncher => "Cube & Dual-Screen",
-                        ProfileId::EmulationStationEsDe => "Universal",
-                        ProfileId::RetroArch => "Libretro",
-                        ProfileId::AnbernicOlderGarlicOs => "Legacy Handheld",
-                        ProfileId::MiyooMiniOnionOs => "Miyoo",
-                        ProfileId::Daijisho => "Android",
-                        ProfileId::Pegasus => "Metadata",
-                        ProfileId::BatoceraArkOs => "Retro",
-                        ProfileId::Custom => "Custom",
-                    };
-
-                    let inner = frame.show(col, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new(icon).size(16.0));
-                            ui.label(
-                                RichText::new(profile.name)
-                                    .size(11.5)
-                                    .strong()
-                                    .color(Color32::WHITE),
-                            );
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if is_sel {
-                                        badge_cyan(ui, "Active");
-                                    } else {
-                                        badge_purple(ui, tag_str);
-                                    }
-                                },
-                            );
-                        });
-                        ui.add_space(2.0);
-                        ui.label(
-                            RichText::new(profile.description)
-                                .size(10.0)
-                                .color(Color32::from_gray(140)),
-                        );
-                        ui.add_space(4.0);
-
-                        egui::Frame::new()
-                            .fill(Color32::from_rgb(6, 9, 13))
-                            .stroke(Stroke::new(1.0, Color32::from_rgb(20, 28, 38)))
-                            .corner_radius(4)
-                            .inner_margin(Margin::symmetric(6, 4))
-                            .show(ui, |ui| {
+                                ui.label(RichText::new(icon).size(22.0));
+                                ui.add_space(2.0);
                                 ui.label(
-                                    RichText::new(format!("Pattern: {}", profile.guidance))
+                                    RichText::new(short_name)
                                         .size(9.5)
-                                        .monospace()
+                                        .strong()
+                                        .color(if is_sel { Color32::WHITE } else { Color32::from_gray(180) }),
+                                );
+                                ui.label(
+                                    RichText::new(format!("{}/", profile.recommended_sd_subfolder))
+                                        .size(8.5)
                                         .color(Color32::from_rgb(0, 229, 255)),
                                 );
                             });
-                    });
+                        });
 
-                    let id = inner.response.id.with(format!("prof_opt_{}", p_idx));
-                    if col
-                        .interact(inner.response.rect, id, egui::Sense::click())
-                        .clicked()
-                    {
-                        self.selected_profile_id = profile.id;
-                        self.subfolder_name = profile.recommended_sd_subfolder.to_string();
-                    }
-                    col.add_space(6.0);
-                }
-            });
-
-            ui.add_space(10.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .button(RichText::new("← Back to SD Setup").size(11.0))
-                    .clicked()
-                {
-                    self.active_tab = ActiveTab::SdCard;
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let next_btn = egui::Button::new(
-                        RichText::new("Proceed to ROMs & Favorites →")
-                            .size(11.5)
-                            .strong()
-                            .color(Color32::WHITE),
-                    )
-                    .fill(Color32::from_rgb(0, 110, 200));
-
-                    if ui.add(next_btn).clicked() {
-                        self.active_tab = ActiveTab::Platforms;
+                        let id = inner.response.id.with(format!("prof_card_{:?}", profile.id));
+                        if ui.interact(inner.response.rect, id, egui::Sense::click()).clicked() {
+                            self.selected_profile_id = profile.id;
+                            self.subfolder_name = profile.recommended_sd_subfolder.to_string();
+                        }
+                        ui.add_space(6.0);
                     }
                 });
             });
         });
     }
 
-    fn render_platforms_tab(&mut self, ui: &mut egui::Ui) {
+    // ------------------------------------------------------------------------
+    // Card 3: 3. Consoles Selection
+    // ------------------------------------------------------------------------
+    fn render_card_consoles_selection(&mut self, ui: &mut egui::Ui) {
         card_frame().show(ui, |ui| {
-            render_card_header(ui, "Discovered Platforms & Curated Games", |ui| {
+            render_card_header(ui, "3. Consoles Selection", |ui| {
                 ui.horizontal(|ui| {
-                    if ui.button(RichText::new("Select All").size(10.5)).clicked() {
+                    if ui.button(RichText::new("All").size(10.0)).clicked() {
                         for p in &mut self.platform_states {
                             p.enabled = true;
                         }
                     }
-                    if ui.button(RichText::new("Deselect All").size(10.5)).clicked() {
+                    if ui.button(RichText::new("None").size(10.0)).clicked() {
                         for p in &mut self.platform_states {
                             p.enabled = false;
                         }
@@ -1390,666 +1111,328 @@ impl RetroCardMakerApp {
                 });
             });
 
-            // Source Library Directory Bar
-            egui::Frame::new()
-                .fill(Color32::from_rgb(10, 14, 20))
-                .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                .corner_radius(6)
-                .inner_margin(Margin::same(8))
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new("Source Library:")
-                                .size(11.5)
-                                .strong()
-                                .color(Color32::WHITE),
-                        );
-                        ui.text_edit_singleline(&mut self.source_path);
-                        if ui.button(RichText::new("📂 Browse...").size(11.0)).clicked() {
-                            if let Some(folder) = rfd::FileDialog::new().pick_folder() {
-                                self.source_path = folder.to_string_lossy().to_string();
-                                self.scan_source_folder();
-                            }
-                        }
-                        if ui.button(RichText::new("🔄 Rescan").size(11.0)).clicked() {
-                            self.scan_source_folder();
-                        }
-                    });
-                });
+            // Scrollable List of detected consoles
+            ScrollArea::vertical().max_height(250.0).show(ui, |ui| {
+                for idx in 0..self.platform_states.len() {
+                    let is_selected_for_preview = self.selected_platform_idx == idx;
+                    let p_state = &mut self.platform_states[idx];
+                    let is_found = p_state.found_dir.is_some();
+                    let rom_count = p_state.rom_files.len();
 
-            ui.add_space(8.0);
-            ui.label(
-                RichText::new(
-                    "Toggle between full ROM collection or curated shortlists (favorites.json):",
-                )
-                .size(10.5)
-                .color(Color32::from_gray(140)),
-            );
-            ui.add_space(6.0);
+                    let frame = if is_selected_for_preview {
+                        egui::Frame::new()
+                            .fill(Color32::from_rgb(16, 26, 38))
+                            .stroke(Stroke::new(1.2, Color32::from_rgb(0, 229, 255)))
+                            .corner_radius(6)
+                            .inner_margin(Margin::symmetric(8, 6))
+                    } else {
+                        egui::Frame::new()
+                            .fill(Color32::from_rgb(10, 14, 20))
+                            .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
+                            .corner_radius(6)
+                            .inner_margin(Margin::symmetric(8, 6))
+                    };
 
-            // Platform Rows
-            for idx in 0..self.platform_states.len() {
-                let p_state = &mut self.platform_states[idx];
-                let is_found = p_state.found_dir.is_some();
-                let rom_count = p_state.rom_files.len();
-                let fav_count = p_state.favorites.as_ref().map(|f| f.games.len()).unwrap_or(0);
+                    let p_icon = match p_state.platform.id {
+                        "nds" => "📱",
+                        "gba" => "🕹️",
+                        "gb" | "gbc" => "📟",
+                        "snes" | "nes" => "🎮",
+                        "n64" => "🕹️",
+                        "psx" | "ps2" => "💿",
+                        "psp" => "🎮",
+                        "megadrive" | "genesis" => "⚡",
+                        "dreamcast" => "🌀",
+                        "saturn" => "🪐",
+                        "master_system" => "🕹️",
+                        "gamegear" => "📟",
+                        "gamecube" | "wii" => "💿",
+                        _ => "🕹️",
+                    };
 
-                let frame = if p_state.enabled && is_found {
-                    egui::Frame::new()
-                        .fill(Color32::from_rgb(12, 17, 24))
-                        .stroke(Stroke::new(1.0, Color32::from_rgb(32, 44, 62)))
-                        .corner_radius(6)
-                        .inner_margin(Margin::symmetric(10, 8))
-                } else {
-                    egui::Frame::new()
-                        .fill(Color32::from_rgb(8, 11, 16))
-                        .stroke(Stroke::new(1.0, Color32::from_rgb(20, 26, 36)))
-                        .corner_radius(6)
-                        .inner_margin(Margin::symmetric(10, 8))
-                };
+                    let mut clicked_curate = false;
 
-                let p_icon = match p_state.platform.id {
-                    "nds" => "📱",
-                    "gba" | "gb" | "gbc" => "📟",
-                    "snes" | "nes" => "🎮",
-                    "n64" => "🕹️",
-                    "psx" | "ps2" => "💿",
-                    "psp" => "🎮",
-                    "megadrive" | "genesis" => "⚡",
-                    "dreamcast" => "🌀",
-                    "saturn" => "🪐",
-                    _ => "🕹️",
-                };
-
-                frame.show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.checkbox(&mut p_state.enabled, "");
-                        ui.label(RichText::new(p_icon).size(14.0));
-                        ui.vertical(|ui| {
-                            ui.label(
-                                RichText::new(p_state.platform.name)
-                                    .size(11.5)
-                                    .strong()
-                                    .color(if is_found {
-                                        Color32::WHITE
-                                    } else {
-                                        Color32::from_gray(120)
-                                    }),
-                            );
-                            if is_found {
-                                let fav_str = if p_state.favorites.is_some() {
-                                    "• favorites.json detected"
-                                } else {
-                                    ""
-                                };
-                                ui.label(
-                                    RichText::new(format!("{} ROMs found {}", rom_count, fav_str))
-                                        .size(10.0)
-                                        .color(Color32::from_gray(140)),
-                                );
-                            } else {
-                                ui.label(
-                                    RichText::new("Folder not found in source library")
-                                        .size(9.5)
-                                        .color(Color32::from_gray(100)),
-                                );
-                            }
-                        });
-
-                        if is_found {
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    // Curate Button
-                                    let curate_btn = egui::Button::new(
-                                        RichText::new("⭐ Curate Favorites...")
-                                            .size(11.0)
-                                            .strong()
-                                            .color(Color32::BLACK),
-                                    )
-                                    .fill(Color32::from_rgb(0, 229, 255));
-
-                                    if ui.add(curate_btn).clicked() {
-                                        self.editing_platform_idx = Some(idx);
-                                        self.editing_selected_games.clear();
-                                        self.editing_custom_patterns.clear();
-                                        self.editing_search_query.clear();
-                                        self.editing_show_selected_only = false;
-                                        self.favorites_save_notification = None;
-
-                                        if let Some(ref favs) = p_state.favorites {
-                                            for g in &favs.games {
-                                                self.editing_selected_games.insert(g.clone());
-                                            }
-                                            for pat in &favs.patterns {
-                                                self.editing_custom_patterns.push(pat.clone());
-                                            }
-                                        } else {
-                                            let default_favs = FavoritesList::from_default_platform(
-                                                &p_state.platform,
-                                            );
-                                            for g in &default_favs.games {
-                                                self.editing_selected_games.insert(g.clone());
-                                            }
-                                            for pat in &default_favs.patterns {
-                                                self.editing_custom_patterns.push(pat.clone());
-                                            }
-                                        }
-                                    }
-
-                                    // Mode Segmented Control: [All (N)] vs [Curated (M)]
-                                    ui.horizontal(|ui| {
-                                        let all_active = p_state.mode == CopyMode::AllRoms;
-                                        let all_btn = egui::Button::new(
-                                            RichText::new(format!("All ({})", rom_count))
-                                                .size(10.5)
-                                                .color(if all_active {
-                                                    Color32::WHITE
-                                                } else {
-                                                    Color32::from_gray(160)
-                                                }),
-                                        )
-                                        .fill(if all_active {
-                                            Color32::from_rgb(139, 92, 246)
-                                        } else {
-                                            Color32::from_rgb(15, 20, 28)
-                                        });
-                                        if ui.add(all_btn).clicked() {
-                                            p_state.mode = CopyMode::AllRoms;
-                                        }
-
-                                        let cur_active = p_state.mode == CopyMode::FavoritesOnly;
-                                        let cur_btn = egui::Button::new(
-                                            RichText::new(format!("Curated ({})", fav_count))
-                                                .size(10.5)
-                                                .color(if cur_active {
-                                                    Color32::WHITE
-                                                } else {
-                                                    Color32::from_gray(160)
-                                                }),
-                                        )
-                                        .fill(if cur_active {
-                                            Color32::from_rgb(139, 92, 246)
-                                        } else {
-                                            Color32::from_rgb(15, 20, 28)
-                                        });
-                                        if ui.add(cur_btn).clicked() {
-                                            p_state.mode = CopyMode::FavoritesOnly;
-                                        }
-                                    });
-                                },
-                            );
-                        }
-                    });
-                });
-                ui.add_space(4.0);
-            }
-
-            ui.add_space(10.0);
-            ui.horizontal(|ui| {
-                if ui
-                    .button(RichText::new("← Back to Profile").size(11.0))
-                    .clicked()
-                {
-                    self.active_tab = ActiveTab::Profile;
-                }
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let next_btn = egui::Button::new(
-                        RichText::new("Proceed to Boxart Pipeline →")
-                            .size(11.5)
-                            .strong()
-                            .color(Color32::WHITE),
-                    )
-                    .fill(Color32::from_rgb(0, 110, 200));
-
-                    if ui.add(next_btn).clicked() {
-                        self.active_tab = ActiveTab::Artwork;
-                    }
-                });
-            });
-        });
-    }
-
-    fn render_artwork_tab(&mut self, ui: &mut egui::Ui) {
-        ui.columns(2, |cols| {
-            // Left Column: Artwork Scraping & Local Media Card
-            let ui = &mut cols[0];
-            card_frame().show(ui, |ui| {
-                render_card_header(ui, "Artwork Scraping & Local Media", |ui| {
-                    badge_green(ui, "Libretro CDN");
-                });
-
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.label(
-                            RichText::new("Enable Boxart Syncing during Copy")
-                                .size(11.5)
-                                .strong()
-                                .color(Color32::WHITE),
-                        );
-                        ui.label(
-                            RichText::new(
-                                "Reuses local covers in Imgs/ and downloads missing ones from Libretro.",
-                            )
-                            .size(10.0)
-                            .color(Color32::from_gray(140)),
-                        );
-                    });
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.checkbox(&mut self.download_art, "");
-                    });
-                });
-
-                ui.add_space(8.0);
-                egui::Frame::new()
-                    .fill(Color32::from_rgb(10, 14, 20))
-                    .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                    .corner_radius(6)
-                    .inner_margin(Margin::same(10))
-                    .show(ui, |ui| {
-                        ui.label(
-                            RichText::new("Boxart Strategy:")
-                                .size(11.0)
-                                .strong()
-                                .color(Color32::from_rgb(0, 229, 255)),
-                        );
-                        ui.add_space(2.0);
-                        ui.label(
-                            RichText::new(
-                                "1. Syncs existing local media (e.g. nds\\Imgs\\) directly.",
-                            )
-                            .size(10.0)
-                            .color(Color32::from_gray(160)),
-                        );
-                        ui.label(
-                            RichText::new(
-                                "2. Normalizes filenames (replaces '& * / : \\' with '_').",
-                            )
-                            .size(10.0)
-                            .color(Color32::from_gray(160)),
-                        );
-                        let profile = LauncherProfile::get_by_id(self.selected_profile_id);
-                        ui.label(
-                            RichText::new(format!(
-                                "3. Places into target folder expected by {}.",
-                                profile.name
-                            ))
-                            .size(10.0)
-                            .color(Color32::from_gray(160)),
-                        );
-                        ui.label(
-                            RichText::new(
-                                "4. Downloads missing covers from Libretro Thumbnails CDN (Free, no keys).",
-                            )
-                            .size(10.0)
-                            .color(Color32::from_gray(160)),
-                        );
-                    });
-
-                ui.add_space(12.0);
-                ui.horizontal(|ui| {
-                    if ui.button(RichText::new("← Back to ROMs").size(11.0)).clicked() {
-                        self.active_tab = ActiveTab::Platforms;
-                    }
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let next_btn = egui::Button::new(
-                            RichText::new("Review & Run QuickInstaller →")
-                                .size(11.5)
-                                .strong()
-                                .color(Color32::WHITE),
-                        )
-                        .fill(Color32::from_rgb(0, 110, 200));
-
-                        if ui.add(next_btn).clicked() {
-                            self.active_tab = ActiveTab::Install;
-                        }
-                    });
-                });
-            });
-
-            // Right Column: Live Scraper Preview Card
-            let ui = &mut cols[1];
-            card_frame().show(ui, |ui| {
-                render_card_header(ui, "Live Scraper Preview", |ui| {
-                    badge_cyan(ui, "Matched Cover");
-                });
-
-                let profile = LauncherProfile::get_by_id(self.selected_profile_id);
-                let dummy_dest = Path::new("E:\\roms");
-                let dummy_platform = find_platform_by_id("nds").unwrap();
-                let art_example =
-                    profile.get_art_destination(dummy_dest, dummy_platform, "Chrono Trigger");
-
-                egui::Frame::new()
-                    .fill(Color32::from_rgb(10, 14, 20))
-                    .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                    .corner_radius(6)
-                    .inner_margin(Margin::same(12))
-                    .show(ui, |ui| {
+                    let inner = frame.show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            egui::Frame::new()
-                                .fill(Color32::from_rgb(18, 25, 36))
-                                .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
-                                .corner_radius(6)
-                                .inner_margin(Margin::same(14))
-                                .show(ui, |ui| {
-                                    ui.label(RichText::new("🖼️").size(24.0));
-                                });
+                            ui.checkbox(&mut p_state.enabled, "");
+                            ui.label(RichText::new(p_icon).size(15.0));
 
                             ui.vertical(|ui| {
                                 ui.label(
-                                    RichText::new("Chrono Trigger")
-                                        .size(12.5)
+                                    RichText::new(p_state.platform.name)
+                                        .size(11.5)
                                         .strong()
-                                        .color(Color32::WHITE),
+                                        .color(if is_found { Color32::WHITE } else { Color32::from_gray(130) }),
                                 );
                                 ui.label(
-                                    RichText::new("Source: nds\\Imgs\\Chrono Trigger (Europe).png")
+                                    RichText::new(format!("{} ROMs", rom_count))
                                         .size(10.0)
-                                        .color(Color32::from_gray(140)),
+                                        .color(if rom_count > 0 { Color32::from_rgb(0, 229, 255) } else { Color32::from_gray(120) }),
                                 );
-                                ui.add_space(4.0);
-                                egui::Frame::new()
-                                    .fill(Color32::from_rgb(6, 9, 13))
-                                    .stroke(Stroke::new(1.0, Color32::from_rgb(20, 28, 38)))
-                                    .corner_radius(4)
-                                    .inner_margin(Margin::symmetric(6, 4))
-                                    .show(ui, |ui| {
-                                        ui.label(
-                                            RichText::new(format!(
-                                                "Destination: {}",
-                                                art_example.display()
-                                            ))
-                                            .size(9.5)
-                                            .monospace()
-                                            .color(Color32::from_rgb(0, 229, 255)),
-                                        );
-                                    });
                             });
-                        });
-                    });
-            });
-        });
-    }
 
-    fn render_install_tab(&mut self, ui: &mut egui::Ui) {
-        ui.columns(2, |cols| {
-            // Left Column: QuickInstall Execution Card
-            let ui = &mut cols[0];
-            card_frame().show(ui, |ui| {
-                render_card_header(ui, "QuickInstall Execution", |ui| {
-                    if self.is_running {
-                        badge_amber(ui, "Running");
-                    } else if self.install_summary.is_some() {
-                        badge_green(ui, "Complete");
-                    } else {
-                        badge_green(ui, "Ready");
-                    }
-                });
-
-                // Summary Info Box
-                egui::Frame::new()
-                    .fill(Color32::from_rgb(10, 14, 20))
-                    .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                    .corner_radius(6)
-                    .inner_margin(Margin::same(10))
-                    .show(ui, |ui| {
-                        if let Some(drive) = self.drives.get(self.selected_drive_idx) {
-                            let fmt_info = if self.do_format {
-                                format!("as {} ('{}')", self.format_fs.as_str(), self.volume_label)
-                            } else {
-                                "Keep Existing Data".to_string()
-                            };
-                            ui.label(
-                                RichText::new(format!(
-                                    "• Target: {} ({}) {}",
-                                    drive.letter,
-                                    drive.total_gb_str(),
-                                    fmt_info
-                                ))
-                                .size(10.5)
-                                .color(Color32::from_gray(180)),
-                            );
-                        }
-
-                        let profile = LauncherProfile::get_by_id(self.selected_profile_id);
-                        ui.label(
-                            RichText::new(format!(
-                                "• Profile: {} ({})",
-                                profile.name, self.subfolder_name
-                            ))
-                            .size(10.5)
-                            .color(Color32::from_rgb(168, 130, 255)),
-                        );
-
-                        let active_platforms: Vec<_> = self
-                            .platform_states
-                            .iter()
-                            .filter(|p| p.enabled && p.found_dir.is_some())
-                            .collect();
-                        let plat_names: Vec<String> = active_platforms
-                            .iter()
-                            .take(4)
-                            .map(|p| {
-                                format!(
-                                    "{} ({})",
-                                    p.platform.name,
-                                    match p.mode {
-                                        CopyMode::AllRoms => "All",
-                                        CopyMode::FavoritesOnly => "Curated",
-                                    }
-                                )
-                            })
-                            .collect();
-                        ui.label(
-                            RichText::new(format!("• Platforms: {}", plat_names.join(", ")))
-                                .size(10.0)
-                                .color(Color32::from_gray(160)),
-                        );
-
-                        let total_roms: usize = active_platforms
-                            .iter()
-                            .map(|p| match p.mode {
-                                CopyMode::AllRoms => p.rom_files.len(),
-                                CopyMode::FavoritesOnly => {
-                                    p.favorites.as_ref().map(|f| f.games.len()).unwrap_or(0)
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if curated_favorites_button(ui) {
+                                    clicked_curate = true;
                                 }
-                            })
-                            .sum();
-                        ui.label(
-                            RichText::new(format!(
-                                "• Total: {} ROMs + Paired Saves + Boxarts",
-                                total_roms
-                            ))
-                            .size(10.5)
-                            .strong()
-                            .color(Color32::WHITE),
-                        );
-                    });
-
-                ui.add_space(8.0);
-
-                // Progress Bar & Phase
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(format!("Status: {}", self.current_phase))
-                            .size(11.0)
-                            .strong()
-                            .color(Color32::WHITE),
-                    );
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let pct = if self.progress_total > 0 {
-                            (self.progress_current as f32 / self.progress_total as f32) * 100.0
-                        } else {
-                            0.0
-                        };
-                        ui.label(
-                            RichText::new(format!("{:.0}%", pct))
-                                .size(11.5)
-                                .strong()
-                                .color(Color32::from_rgb(0, 229, 255)),
-                        );
-                    });
-                });
-
-                let fraction = if self.progress_total > 0 {
-                    self.progress_current as f32 / self.progress_total as f32
-                } else {
-                    0.0
-                };
-
-                ui.add(egui::ProgressBar::new(fraction).animate(self.is_running));
-
-                let item_label = if self.current_item.is_empty() {
-                    if self.is_running {
-                        "Processing files..."
-                    } else {
-                        "Awaiting launch..."
-                    }
-                } else {
-                    &self.current_item
-                };
-                ui.label(
-                    RichText::new(item_label)
-                        .size(10.0)
-                        .color(Color32::from_gray(140)),
-                );
-
-                ui.add_space(10.0);
-
-                // Controls
-                ui.horizontal(|ui| {
-                    if !self.is_running {
-                        let can_start = !self.drives.is_empty()
-                            && (!self.do_format || self.format_confirmed)
-                            && self
-                                .platform_states
-                                .iter()
-                                .any(|p| p.enabled && p.found_dir.is_some());
-
-                        let start_btn = egui::Button::new(
-                            RichText::new("🚀 Start QuickInstaller")
-                                .size(12.5)
-                                .strong()
-                                .color(Color32::BLACK),
-                        )
-                        .fill(Color32::from_rgb(16, 185, 129));
-
-                        if ui.add_enabled(can_start, start_btn).clicked() {
-                            self.start_install();
-                        }
-
-                        if !can_start {
-                            ui.colored_label(
-                                Color32::from_rgb(255, 170, 70),
-                                "Confirm format or select drive to proceed.",
-                            );
-                        }
-                    } else {
-                        let cancel_btn = egui::Button::new(
-                            RichText::new("🛑 Cancel Installation")
-                                .size(12.0)
-                                .strong()
-                                .color(Color32::WHITE),
-                        )
-                        .fill(Color32::from_rgb(220, 50, 50));
-
-                        if ui.add(cancel_btn).clicked() {
-                            self.cancel_flag.store(true, Ordering::Relaxed);
-                            self.logs.push("Cancelling operation...".to_string());
-                        }
-                    }
-                });
-
-                if let Some(ref summary) = self.install_summary {
-                    ui.add_space(6.0);
-                    ui.colored_label(
-                        Color32::from_rgb(80, 240, 80),
-                        format!(
-                            "🎉 Complete! Copied {} ROMs, synced {} boxarts ({:.1} MB).",
-                            summary.total_roms_copied,
-                            summary.total_art_downloaded,
-                            summary.total_bytes_copied as f64 / (1024.0 * 1024.0)
-                        ),
-                    );
-                }
-
-                if let Some(ref err) = self.install_error {
-                    ui.add_space(6.0);
-                    ui.colored_label(Color32::from_rgb(255, 90, 90), format!("❌ Error: {}", err));
-                }
-            });
-
-            // Right Column: Styled Terminal Console Window Card
-            let ui = &mut cols[1];
-            egui::Frame::new()
-                .fill(Color32::from_rgb(5, 8, 12))
-                .stroke(Stroke::new(1.0, Color32::from_rgb(28, 36, 50)))
-                .corner_radius(8)
-                .inner_margin(Margin::same(0))
-                .show(ui, |ui| {
-                    // Terminal Header Bar with Red, Yellow, Green dots
-                    egui::Frame::new()
-                        .fill(Color32::from_rgb(11, 15, 23))
-                        .stroke(Stroke::new(0.0, Color32::TRANSPARENT))
-                        .corner_radius(8)
-                        .inner_margin(Margin::symmetric(10, 6))
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(RichText::new("🔴").size(8.0));
-                                ui.label(RichText::new("🟡").size(8.0));
-                                ui.label(RichText::new("🟢").size(8.0));
-                                ui.add_space(4.0);
-                                ui.label(
-                                    RichText::new("Console Output")
-                                        .size(10.5)
-                                        .color(Color32::from_gray(160)),
-                                );
                             });
                         });
+                    });
 
-                    // Terminal Body with scroll
-                    egui::Frame::new()
-                        .fill(Color32::from_rgb(5, 8, 12))
-                        .inner_margin(Margin::same(10))
-                        .show(ui, |ui| {
-                            ScrollArea::vertical()
-                                .max_height(240.0)
-                                .stick_to_bottom(true)
-                                .show(ui, |ui| {
-                                    for line in &self.logs {
-                                        let color = if line.contains("ERROR")
-                                            || line.contains("Failed")
-                                        {
-                                            Color32::from_rgb(255, 100, 100)
-                                        } else if line.contains("Phase")
-                                            || line.contains("Succeeded")
-                                        {
-                                            Color32::from_rgb(0, 229, 255)
-                                        } else if line.contains("Downloaded")
-                                            || line.contains("Copied")
-                                        {
-                                            Color32::from_rgb(16, 185, 129)
-                                        } else {
-                                            Color32::from_rgb(180, 200, 225)
-                                        };
-                                        ui.label(
-                                            RichText::new(line)
-                                                .monospace()
-                                                .size(10.0)
-                                                .color(color),
-                                        );
-                                    }
-                                });
-                        });
-                });
+                    if clicked_curate {
+                        self.open_favorites_editor(idx);
+                    }
+
+                    let row_id = inner.response.id.with(format!("console_row_{}", idx));
+                    if ui.interact(inner.response.rect, row_id, egui::Sense::click()).clicked() {
+                        self.selected_platform_idx = idx;
+                    }
+
+                    ui.add_space(4.0);
+                }
+            });
         });
     }
 
     // ------------------------------------------------------------------------
-    // Curated Favorites Modal (Matching Mockup 2-Column Layout)
+    // Card 4: 4. Live ROMs & Boxart Preview
     // ------------------------------------------------------------------------
+    fn render_card_roms_preview(&mut self, ui: &mut egui::Ui) {
+        card_frame().show(ui, |ui| {
+            let active_plat = self.platform_states.get(self.selected_platform_idx).cloned();
+            let plat_title = active_plat
+                .as_ref()
+                .map(|p| format!("{} ({} ROMs)", p.platform.name, p.rom_files.len()))
+                .unwrap_or_else(|| "ROMs & Boxart Preview".to_string());
 
+            render_card_header(ui, "4. Live ROMs & Boxart Preview", |ui| {
+                badge_cyan(ui, &plat_title);
+            });
+
+            // Subheader: Search box + Boxart Sync toggle
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("🔍").size(12.0));
+                ui.text_edit_singleline(&mut self.rom_search_query);
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.label(RichText::new("Sync Boxart").size(10.5).color(Color32::from_gray(200)));
+                    toggle_switch(ui, &mut self.download_art);
+                    badge_green(ui, "Libretro CDN");
+                });
+            });
+
+            ui.add_space(6.0);
+
+            // Games Table
+            ScrollArea::vertical().max_height(210.0).show(ui, |ui| {
+                if let Some(ref p_state) = active_plat {
+                    let search_lower = self.rom_search_query.to_lowercase();
+                    let top_list = p_state.platform.default_favorites;
+                    let fav_set = p_state.favorites.as_ref().map(|f| f.games.iter().collect::<HashSet<_>>());
+
+                    let mut shown = 0;
+                    for rom in &p_state.rom_files {
+                        if !search_lower.is_empty() && !rom.to_lowercase().contains(&search_lower) {
+                            continue;
+                        }
+                        shown += 1;
+                        let is_top = top_list.iter().any(|&c| rom.to_lowercase().contains(&c.to_lowercase()));
+                        let is_fav = fav_set.as_ref().map(|s| s.contains(rom)).unwrap_or(false);
+
+                        egui::Frame::new()
+                            .fill(Color32::from_rgb(10, 14, 20))
+                            .stroke(Stroke::new(1.0, Color32::from_rgb(22, 30, 42)))
+                            .corner_radius(4)
+                            .inner_margin(Margin::symmetric(6, 4))
+                            .show(ui, |ui| {
+                                ui.horizontal(|ui| {
+                                    // Thumbnail / Image Placeholder
+                                    egui::Frame::new()
+                                        .fill(Color32::from_rgb(16, 22, 32))
+                                        .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
+                                        .corner_radius(4)
+                                        .inner_margin(Margin::same(4))
+                                        .show(ui, |ui| {
+                                            ui.label(RichText::new("🖼️").size(12.0));
+                                        });
+
+                                    ui.vertical(|ui| {
+                                        ui.label(RichText::new(rom).size(11.0).strong().color(Color32::WHITE));
+                                        ui.label(RichText::new(format!("Platform: {}", p_state.platform.name)).size(9.5).color(Color32::from_gray(140)));
+                                    });
+
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        if is_top {
+                                            badge_green(ui, "Top Classic");
+                                        } else if is_fav {
+                                            badge_purple(ui, "Curated");
+                                        } else {
+                                            badge_cyan(ui, "ROM");
+                                        }
+                                    });
+                                });
+                            });
+                        ui.add_space(2.0);
+                    }
+
+                    if shown == 0 {
+                        ui.label(RichText::new("No ROMs match the filter or folder empty.").size(10.5).color(Color32::GRAY));
+                    }
+                } else {
+                    ui.label(RichText::new("No platform selected.").size(10.5).color(Color32::GRAY));
+                }
+            });
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Card 5: 5. QuickInstaller Cockpit
+    // ------------------------------------------------------------------------
+    fn render_card_installer_cockpit(&mut self, ui: &mut egui::Ui) {
+        card_frame().show(ui, |ui| {
+            render_card_header(ui, "5. QuickInstaller Cockpit", |ui| {
+                if self.is_running {
+                    badge_amber(ui, "🚀 EXECUTING");
+                } else if self.install_summary.is_some() {
+                    badge_green(ui, "✓ COMPLETE");
+                } else {
+                    badge_green(ui, "READY");
+                }
+            });
+
+            // Progress Bar 1: PLATFORM SYNC
+            let sync_frac = if self.platform_states.is_empty() {
+                0.0
+            } else {
+                let enabled_count = self.platform_states.iter().filter(|p| p.enabled && p.found_dir.is_some()).count();
+                if enabled_count == 0 { 0.0 } else { 1.0 }
+            };
+            let sync_text = format!("{:.0}%", sync_frac * 100.0);
+            render_neon_progress_bar(ui, "PLATFORM SYNC", sync_frac, &sync_text);
+
+            // Progress Bar 2: FILE COPY
+            let copy_frac = if self.progress_total > 0 {
+                self.progress_current as f32 / self.progress_total as f32
+            } else {
+                0.0
+            };
+            let copy_text = if self.progress_total > 0 {
+                format!("{}/{} ({:.0}%)", self.progress_current, self.progress_total, copy_frac * 100.0)
+            } else {
+                "0/0 (0%)".to_string()
+            };
+            render_neon_progress_bar(ui, "FILE COPY", copy_frac, &copy_text);
+
+            let item_label = if self.current_item.is_empty() {
+                if self.is_running { "Copying game assets..." } else { "System idling. Ready for quickinstall." }
+            } else {
+                &self.current_item
+            };
+            ui.label(RichText::new(item_label).size(10.0).color(Color32::from_gray(150)));
+
+            ui.add_space(8.0);
+
+            // Giant QuickInstall Button
+            if !self.is_running {
+                let can_start = !self.drives.is_empty()
+                    && (!self.do_format || self.format_confirmed)
+                    && self.platform_states.iter().any(|p| p.enabled && p.found_dir.is_some());
+
+                let target_letter = self.drives.get(self.selected_drive_idx).map(|d| d.letter.as_str()).unwrap_or("E:");
+
+                let start_btn = egui::Button::new(
+                    RichText::new(format!("🚀 START QUICKINSTALL ({})", target_letter))
+                        .size(13.0)
+                        .strong()
+                        .color(Color32::BLACK),
+                )
+                .fill(Color32::from_rgb(16, 185, 129));
+
+                if ui.add_sized([ui.available_width(), 36.0], start_btn).clicked() && can_start {
+                    self.start_install();
+                }
+
+                if !can_start {
+                    ui.add_space(2.0);
+                    ui.label(RichText::new("Confirm erase or verify removable drive to launch.").size(9.5).color(Color32::from_rgb(255, 180, 100)));
+                }
+            } else {
+                let cancel_btn = egui::Button::new(
+                    RichText::new("🛑 CANCEL QUICKINSTALL")
+                        .size(13.0)
+                        .strong()
+                        .color(Color32::WHITE),
+                )
+                .fill(Color32::from_rgb(239, 68, 68));
+
+                if ui.add_sized([ui.available_width(), 36.0], cancel_btn).clicked() {
+                    self.cancel_flag.store(true, Ordering::Relaxed);
+                    self.logs.push("[CANCEL] Cancellation requested by user.".to_string());
+                }
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Card 6: Terminal Console (terminal.log)
+    // ------------------------------------------------------------------------
+    fn render_card_terminal_console(&mut self, ui: &mut egui::Ui) {
+        egui::Frame::new()
+            .fill(Color32::from_rgb(6, 9, 14))
+            .stroke(Stroke::new(1.0, Color32::from_rgb(26, 36, 50)))
+            .corner_radius(8)
+            .inner_margin(Margin::same(0))
+            .show(ui, |ui| {
+                // Header with macOS/Linux colored dots
+                egui::Frame::new()
+                    .fill(Color32::from_rgb(12, 17, 26))
+                    .corner_radius(8)
+                    .inner_margin(Margin::symmetric(10, 6))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("🔴").size(8.0));
+                            ui.label(RichText::new("🟡").size(8.0));
+                            ui.label(RichText::new("🟢").size(8.0));
+                            ui.add_space(4.0);
+                            ui.label(RichText::new("terminal.log").monospace().size(10.5).color(Color32::from_gray(180)));
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                badge_cyan(ui, "Execution Stream");
+                            });
+                        });
+                    });
+
+                // Scrollable Console Body
+                egui::Frame::new()
+                    .fill(Color32::from_rgb(6, 9, 14))
+                    .inner_margin(Margin::same(8))
+                    .show(ui, |ui| {
+                        ScrollArea::vertical()
+                            .max_height(145.0)
+                            .stick_to_bottom(true)
+                            .show(ui, |ui| {
+                                for line in &self.logs {
+                                    let color = if line.contains("ERROR") || line.contains("Failed") {
+                                        Color32::from_rgb(255, 100, 100)
+                                    } else if line.contains("Phase") || line.contains("Succeeded") {
+                                        Color32::from_rgb(0, 229, 255)
+                                    } else if line.contains("ROMS") || line.contains("DRIVE") {
+                                        Color32::from_rgb(168, 130, 255)
+                                    } else {
+                                        Color32::from_rgb(180, 205, 235)
+                                    };
+                                    ui.label(RichText::new(line).monospace().size(9.5).color(color));
+                                }
+                            });
+                    });
+            });
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Curated Favorites Modal Dialog (Matching cardmaker_favorites_modal_1790889844749.jpg)
+// ----------------------------------------------------------------------------
+
+impl RetroCardMakerApp {
     fn render_favorites_modal(&mut self, ui: &mut egui::Ui) {
         let Some(p_idx) = self.editing_platform_idx else {
             return;
@@ -2057,29 +1440,39 @@ impl RetroCardMakerApp {
 
         let p_state = &self.platform_states[p_idx];
         let p_name = p_state.platform.name;
+        let rom_count = p_state.rom_files.len();
         let mut close_modal = false;
         let mut do_save = false;
 
-        egui::Window::new(format!("⭐ Curate Favorites: {}", p_name))
+        egui::Window::new(format!("Curate Favorites: {} ({}) - {} ROMs", p_name, p_state.platform.id.to_uppercase(), rom_count))
             .collapsible(false)
             .resizable(true)
             .default_size(Vec2::new(880.0, 560.0))
             .show(ui.ctx(), |ui| {
+                // Top Header Action Bar
                 ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new("Easily select what is saved into favorites.json. Search, toggle items, or add keyword rules.")
-                            .size(11.0)
-                            .color(Color32::from_gray(160)),
-                    );
+                    if ui.button(RichText::new("⭐ Select Recommended Top Classics").size(11.0).strong()).clicked() {
+                        let top = FavoritesList::from_default_platform(&p_state.platform);
+                        for item in top.games {
+                            self.editing_selected_games.insert(item);
+                        }
+                    }
+
+                    if ui.button(RichText::new("Select All").size(10.5)).clicked() {
+                        for r in &p_state.rom_files {
+                            self.editing_selected_games.insert(r.clone());
+                        }
+                    }
+                    if ui.button(RichText::new("Clear").size(10.5)).clicked() {
+                        self.editing_selected_games.clear();
+                    }
+
+                    ui.add_space(8.0);
+                    ui.label(RichText::new("🔍").size(11.0));
+                    ui.text_edit_singleline(&mut self.editing_search_query);
+
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        badge_purple(
-                            ui,
-                            &format!(
-                                "{} of {} Curated",
-                                self.editing_selected_games.len(),
-                                p_state.rom_files.len()
-                            ),
-                        );
+                        badge_purple(ui, &format!("{} of {} Curated", self.editing_selected_games.len(), rom_count));
                     });
                 });
 
@@ -2087,182 +1480,124 @@ impl RetroCardMakerApp {
                 ui.separator();
                 ui.add_space(4.0);
 
-                // Two-Column Grid inside the Modal (Matching Mockup)
+                // Two-Column Grid: Left (~55%) Games List, Right (~45%) Live Artwork Preview & Patterns
                 ui.columns(2, |mcols| {
-                    // Left Column (~55%): Search, Quick Bulk Actions & Games Table
+                    // Left Column: Games Table
                     let ui = &mut mcols[0];
-
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("🔍").size(12.0));
-                        ui.text_edit_singleline(&mut self.editing_search_query);
-
-                        if ui.button(RichText::new("⭐ Top Essentials").size(10.5)).clicked() {
-                            let top = FavoritesList::from_default_platform(&p_state.platform);
-                            for item in top.games {
-                                self.editing_selected_games.insert(item);
-                            }
-                        }
-                        if ui.button(RichText::new("All").size(10.5)).clicked() {
-                            for rom in &p_state.rom_files {
-                                if self.editing_search_query.is_empty()
-                                    || rom
-                                        .to_lowercase()
-                                        .contains(&self.editing_search_query.to_lowercase())
-                                {
-                                    self.editing_selected_games.insert(rom.clone());
-                                }
-                            }
-                        }
-                        if ui.button(RichText::new("Invert").size(10.5)).clicked() {
-                            for rom in &p_state.rom_files {
-                                if self.editing_selected_games.contains(rom) {
-                                    self.editing_selected_games.remove(rom);
-                                } else {
-                                    self.editing_selected_games.insert(rom.clone());
-                                }
-                            }
-                        }
-                        if ui.button(RichText::new("Clear").size(10.5)).clicked() {
-                            self.editing_selected_games.clear();
-                        }
-                    });
-
-                    ui.add_space(4.0);
-                    ui.horizontal(|ui| {
-                        ui.checkbox(
-                            &mut self.editing_show_selected_only,
-                            RichText::new(format!(
-                                "Show Selected Only ({})",
-                                self.editing_selected_games.len()
-                            ))
-                            .size(10.5),
-                        );
-                        ui.separator();
-                        ui.label(
-                            RichText::new(format!("Total ROMs: {}", p_state.rom_files.len()))
-                                .size(10.5)
-                                .color(Color32::from_gray(150)),
-                        );
-                    });
-
-                    ui.add_space(4.0);
-
-                    // Games List Table
-                    ScrollArea::vertical().max_height(340.0).show(ui, |ui| {
+                    ScrollArea::vertical().max_height(360.0).show(ui, |ui| {
                         let search_lower = self.editing_search_query.to_lowercase();
                         let top_list = p_state.platform.default_favorites;
 
-                        let mut displayed_count = 0;
+                        let mut shown = 0;
                         for rom in &p_state.rom_files {
-                            let is_selected = self.editing_selected_games.contains(rom);
-
-                            if self.editing_show_selected_only && !is_selected {
-                                continue;
-                            }
+                            let is_checked = self.editing_selected_games.contains(rom);
                             if !search_lower.is_empty() && !rom.to_lowercase().contains(&search_lower) {
                                 continue;
                             }
+                            shown += 1;
+                            let is_top = top_list.iter().any(|&c| rom.to_lowercase().contains(&c.to_lowercase()));
+                            let icon = get_game_icon(rom);
 
-                            displayed_count += 1;
-                            let is_essential = top_list
-                                .iter()
-                                .any(|&c| rom.to_lowercase().contains(&c.to_lowercase()));
-                            let game_icon = get_game_icon(rom);
-
-                            let row_frame = if is_selected {
+                            let frame = if is_checked {
                                 egui::Frame::new()
-                                    .fill(Color32::from_rgb(14, 24, 34))
-                                    .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
-                                    .corner_radius(4)
+                                    .fill(Color32::from_rgb(14, 25, 36))
+                                    .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
+                                    .corner_radius(6)
                                     .inner_margin(Margin::symmetric(6, 4))
                             } else {
                                 egui::Frame::new()
                                     .fill(Color32::from_rgb(10, 14, 20))
-                                    .stroke(Stroke::new(1.0, Color32::from_rgb(22, 28, 38)))
-                                    .corner_radius(4)
+                                    .stroke(Stroke::new(1.0, Color32::from_rgb(22, 30, 42)))
+                                    .corner_radius(6)
                                     .inner_margin(Margin::symmetric(6, 4))
                             };
 
-                            row_frame.show(ui, |ui| {
+                            let inner = frame.show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    let mut checked = is_selected;
-                                    if ui.checkbox(&mut checked, "").changed() {
-                                        if checked {
+                                    let mut chk = is_checked;
+                                    if ui.checkbox(&mut chk, "").changed() {
+                                        if chk {
                                             self.editing_selected_games.insert(rom.clone());
                                         } else {
                                             self.editing_selected_games.remove(rom);
                                         }
                                     }
 
-                                    ui.label(RichText::new(game_icon).size(13.0));
+                                    ui.label(RichText::new(icon).size(13.0));
+                                    ui.label(RichText::new(rom).size(11.0).color(if is_checked { Color32::WHITE } else { Color32::from_gray(170) }));
 
-                                    ui.label(
-                                        RichText::new(rom)
-                                            .size(11.0)
-                                            .color(if is_selected {
-                                                Color32::WHITE
-                                            } else {
-                                                Color32::from_gray(160)
-                                            }),
-                                    );
-
-                                    if is_essential {
-                                        ui.with_layout(
-                                            egui::Layout::right_to_left(egui::Align::Center),
-                                            |ui| {
-                                                badge_green(ui, "Essential");
-                                            },
-                                        );
-                                    }
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        if is_top {
+                                            badge_green(ui, "★ Top Classic");
+                                        }
+                                    });
                                 });
                             });
+
+                            let id = inner.response.id.with(format!("modal_game_{}", rom));
+                            if ui.interact(inner.response.rect, id, egui::Sense::click()).clicked() {
+                                self.favorites_preview_game = Some(rom.clone());
+                            }
                             ui.add_space(2.0);
                         }
 
-                        if displayed_count == 0 {
-                            ui.label(
-                                RichText::new("No games match the current search filter.")
-                                    .size(10.5)
-                                    .color(Color32::GRAY),
-                            );
+                        if shown == 0 {
+                            ui.label(RichText::new("No games found.").size(10.5).color(Color32::GRAY));
                         }
                     });
 
-                    // Right Column (~45%): Search Pattern Rules & Live Generated Code Preview
+                    // Right Column: Live Libretro Preview Card & Pattern Rules
                     let ui = &mut mcols[1];
+                    ui.label(RichText::new("Live preview").size(11.0).strong().color(Color32::WHITE));
+                    ui.add_space(2.0);
 
-                    // 1. Search Pattern Rules Card
+                    // Artwork Preview Card
                     egui::Frame::new()
-                        .fill(Color32::from_rgb(10, 14, 20))
-                        .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                        .corner_radius(6)
+                        .fill(Color32::from_rgb(10, 15, 22))
+                        .stroke(Stroke::new(1.0, Color32::from_rgb(26, 38, 54)))
+                        .corner_radius(8)
+                        .inner_margin(Margin::same(12))
+                        .show(ui, |ui| {
+                            let preview_title = self.favorites_preview_game.clone().unwrap_or_else(|| "Chrono Trigger".to_string());
+
+                            ui.horizontal(|ui| {
+                                // Cover art placeholder with Libretro branding
+                                egui::Frame::new()
+                                    .fill(Color32::from_rgb(18, 30, 44))
+                                    .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
+                                    .corner_radius(6)
+                                    .inner_margin(Margin::same(16))
+                                    .show(ui, |ui| {
+                                        ui.vertical_centered(|ui| {
+                                            ui.label(RichText::new("LIBRETRO").size(9.0).strong().color(Color32::from_rgb(0, 229, 255)));
+                                            ui.label(RichText::new("🖼️").size(28.0));
+                                            ui.label(RichText::new("COVER").size(8.0).color(Color32::from_gray(160)));
+                                        });
+                                    });
+
+                                ui.vertical(|ui| {
+                                    ui.label(RichText::new(&preview_title).size(12.5).strong().color(Color32::WHITE));
+                                    ui.label(RichText::new(format!("Platform: {}", p_state.platform.name)).size(10.0).color(Color32::from_gray(150)));
+                                    ui.label(RichText::new("Publisher: Verified Dump").size(9.5).color(Color32::from_gray(140)));
+                                    ui.label(RichText::new("CDN: Libretro Thumbnails").size(9.5).color(Color32::from_rgb(16, 185, 129)));
+                                });
+                            });
+                        });
+
+                    ui.add_space(8.0);
+
+                    // Keyword Pattern Rules Card
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(10, 15, 22))
+                        .stroke(Stroke::new(1.0, Color32::from_rgb(26, 38, 54)))
+                        .corner_radius(8)
                         .inner_margin(Margin::same(10))
                         .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new("Search Pattern Rules:")
-                                        .size(11.0)
-                                        .strong()
-                                        .color(Color32::from_rgb(0, 229, 255)),
-                                );
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        ui.label(
-                                            RichText::new("Matches substrings")
-                                                .size(9.5)
-                                                .color(Color32::from_gray(130)),
-                                        );
-                                    },
-                                );
-                            });
-
-                            ui.add_space(4.0);
+                            ui.label(RichText::new("Keyword Pattern Rules:").size(10.5).strong().color(Color32::from_rgb(0, 229, 255)));
+                            ui.add_space(2.0);
                             ui.horizontal(|ui| {
                                 ui.text_edit_singleline(&mut self.new_favorite_pattern);
-                                if ui.button(RichText::new("+ Add").size(10.5)).clicked()
-                                    && !self.new_favorite_pattern.trim().is_empty()
-                                {
+                                if ui.button(RichText::new("+ Add").size(10.5)).clicked() && !self.new_favorite_pattern.trim().is_empty() {
                                     let pat = self.new_favorite_pattern.trim().to_string();
                                     if !self.editing_custom_patterns.contains(&pat) {
                                         self.editing_custom_patterns.push(pat);
@@ -2271,81 +1606,19 @@ impl RetroCardMakerApp {
                                 }
                             });
 
-                            ui.add_space(6.0);
+                            ui.add_space(4.0);
                             ui.horizontal_wrapped(|ui| {
                                 let mut to_remove = None;
                                 for (p_i, pat) in self.editing_custom_patterns.iter().enumerate() {
-                                    egui::Frame::new()
-                                        .fill(Color32::from_rgb(0, 35, 45))
-                                        .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
-                                        .corner_radius(4)
-                                        .inner_margin(Margin::symmetric(5, 2))
-                                        .show(ui, |ui| {
-                                            ui.horizontal(|ui| {
-                                                ui.label(
-                                                    RichText::new(pat)
-                                                        .size(10.0)
-                                                        .monospace()
-                                                        .color(Color32::from_rgb(165, 243, 252)),
-                                                );
-                                                if ui.button(RichText::new("✖").size(8.5)).clicked()
-                                                {
-                                                    to_remove = Some(p_i);
-                                                }
-                                            });
-                                        });
+                                    badge_cyan(ui, pat);
+                                    if ui.button(RichText::new("✕").size(8.5)).clicked() {
+                                        to_remove = Some(p_i);
+                                    }
                                 }
-                                if let Some(r_idx) = to_remove {
-                                    self.editing_custom_patterns.remove(r_idx);
+                                if let Some(r) = to_remove {
+                                    self.editing_custom_patterns.remove(r);
                                 }
                             });
-                        });
-
-                    ui.add_space(8.0);
-
-                    // 2. Live Generated favorites.json Preview Card
-                    egui::Frame::new()
-                        .fill(Color32::from_rgb(10, 14, 20))
-                        .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
-                        .corner_radius(6)
-                        .inner_margin(Margin::same(10))
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new("Live Generated favorites.json:")
-                                        .size(11.0)
-                                        .strong()
-                                        .color(Color32::WHITE),
-                                );
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        badge_green(ui, "✓ Auto-Synchronized");
-                                    },
-                                );
-                            });
-
-                            ui.add_space(4.0);
-                            let mut preview_games: Vec<String> =
-                                self.editing_selected_games.iter().cloned().collect();
-                            preview_games.sort();
-                            let preview_fav = FavoritesList {
-                                platform: p_state.platform.id.to_string(),
-                                title: format!("{} Curated Favorites", p_state.platform.name),
-                                games: preview_games,
-                                patterns: self.editing_custom_patterns.clone(),
-                            };
-
-                            if let Ok(mut json_str) = serde_json::to_string_pretty(&preview_fav) {
-                                ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
-                                    ui.add(
-                                        egui::TextEdit::multiline(&mut json_str)
-                                            .font(egui::TextStyle::Monospace)
-                                            .desired_rows(10)
-                                            .desired_width(f32::INFINITY),
-                                    );
-                                });
-                            }
                         });
                 });
 
@@ -2357,33 +1630,33 @@ impl RetroCardMakerApp {
                 ui.add_space(8.0);
                 ui.separator();
 
-                // Modal Footer
+                // Modal Footer with Lime Green Save Button
                 ui.horizontal(|ui| {
                     let target_folder = p_state
                         .found_dir
                         .as_ref()
                         .map(|d| d.display().to_string())
                         .unwrap_or_else(|| "Not found".to_string());
-                    ui.label(
-                        RichText::new(format!("Target: {}\\{}", target_folder, "favorites.json"))
-                            .size(10.0)
-                            .color(Color32::from_gray(150)),
-                    );
+                    ui.label(RichText::new(format!("Destination: {}\\{}", target_folder, "favorites.json")).size(9.5).color(Color32::from_gray(140)));
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let save_btn = egui::Button::new(
-                            RichText::new("💾 Save favorites.json")
+                            RichText::new("Save favorites.json")
                                 .size(11.5)
                                 .strong()
                                 .color(Color32::BLACK),
                         )
-                        .fill(Color32::from_rgb(16, 185, 129));
+                        .fill(Color32::from_rgb(132, 204, 22)); // Glowing Lime Green
 
                         if ui.add(save_btn).clicked() {
                             do_save = true;
                         }
 
-                        if ui.button(RichText::new("Cancel").size(11.0)).clicked() {
+                        ui.add_space(4.0);
+                        ui.label(RichText::new("Sync Boxart").size(10.5).color(Color32::from_gray(200)));
+                        toggle_switch(ui, &mut self.download_art);
+
+                        if ui.button(RichText::new("Close").size(11.0)).clicked() {
                             close_modal = true;
                         }
                     });
@@ -2392,36 +1665,27 @@ impl RetroCardMakerApp {
 
         if do_save {
             if let Some(ref dir) = self.platform_states[p_idx].found_dir {
-                let mut games_list: Vec<String> =
-                    self.editing_selected_games.iter().cloned().collect();
+                let mut games_list: Vec<String> = self.editing_selected_games.iter().cloned().collect();
                 games_list.sort();
 
                 let favs = FavoritesList {
                     platform: self.platform_states[p_idx].platform.id.to_string(),
-                    title: format!(
-                        "{} Curated Favorites",
-                        self.platform_states[p_idx].platform.name
-                    ),
+                    title: format!("{} Curated Favorites", self.platform_states[p_idx].platform.name),
                     games: games_list,
                     patterns: self.editing_custom_patterns.clone(),
                 };
 
                 match save_favorites(dir, &favs) {
                     Ok(_) => {
-                        self.favorites_save_notification = Some(format!(
-                            "✓ Successfully saved favorites.json with {} games!",
-                            favs.games.len()
-                        ));
+                        self.favorites_save_notification = Some(format!("✓ Successfully saved favorites.json with {} games!", favs.games.len()));
                         self.platform_states[p_idx].favorites = Some(favs);
                     }
                     Err(e) => {
-                        self.favorites_save_notification =
-                            Some(format!("Error saving favorites: {}", e));
+                        self.favorites_save_notification = Some(format!("Error saving favorites: {}", e));
                     }
                 }
             } else {
-                self.favorites_save_notification =
-                    Some("Error: Source folder not found.".to_string());
+                self.favorites_save_notification = Some("Error: Source folder not found.".to_string());
             }
         }
 
@@ -2431,5 +1695,234 @@ impl RetroCardMakerApp {
             self.editing_custom_patterns.clear();
             self.favorites_save_notification = None;
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Full-Screen Favorites Tab View (Matching cardmaker_compact_ui_1790890233113.jpg)
+// ----------------------------------------------------------------------------
+
+impl RetroCardMakerApp {
+    fn render_favorites_tab_view(&mut self, ui: &mut egui::Ui) {
+        card_frame().show(ui, |ui| {
+            let active_idx = self.selected_platform_idx;
+            let active_plat = self.platform_states.get(active_idx).cloned();
+            let plat_name = active_plat.as_ref().map(|p| p.platform.name).unwrap_or("Nintendo DS");
+            let plat_code = active_plat.as_ref().map(|p| p.platform.id.to_uppercase()).unwrap_or_else(|| "NDS".to_string());
+
+            render_card_header(ui, &format!("Curate Favorites: {} ({})", plat_name, plat_code), |ui| {
+                ui.horizontal(|ui| {
+                    for (i, p) in self.platform_states.iter().enumerate().take(8) {
+                        let is_cur = self.selected_platform_idx == i;
+                        let btn = egui::Button::new(RichText::new(p.platform.id.to_uppercase()).size(9.5).color(if is_cur { Color32::WHITE } else { Color32::from_gray(160) }))
+                            .fill(if is_cur { Color32::from_rgb(0, 160, 210) } else { Color32::from_rgb(18, 24, 34) });
+                        if ui.add(btn).clicked() {
+                            self.selected_platform_idx = i;
+                        }
+                    }
+                });
+            });
+
+            // Two Columns: Left (~60%) Games List, Right (~40%) Live JSON Code Preview
+            ui.columns(2, |fcols| {
+                let left_ui = &mut fcols[0];
+                left_ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new("🔍").size(12.0));
+                        ui.text_edit_singleline(&mut self.rom_search_query);
+
+                        badge_cyan(ui, "Genre: RPG ✕");
+                        badge_purple(ui, "Format: Verified ✕");
+                    });
+
+                    ui.add_space(6.0);
+
+                    // Games list table
+                    ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
+                        if let Some(p_state) = self.platform_states.get_mut(active_idx) {
+                            let top_list = p_state.platform.default_favorites;
+                            let search_lower = self.rom_search_query.to_lowercase();
+
+                            for rom in &p_state.rom_files {
+                                if !search_lower.is_empty() && !rom.to_lowercase().contains(&search_lower) {
+                                    continue;
+                                }
+
+                                let is_top = top_list.iter().any(|&c| rom.to_lowercase().contains(&c.to_lowercase()));
+                                let icon = get_game_icon(rom);
+
+                                egui::Frame::new()
+                                    .fill(Color32::from_rgb(12, 17, 24))
+                                    .stroke(Stroke::new(1.0, Color32::from_rgb(24, 34, 48)))
+                                    .corner_radius(6)
+                                    .inner_margin(Margin::symmetric(8, 6))
+                                    .show(ui, |ui| {
+                                        ui.horizontal(|ui| {
+                                            let mut checked = is_top;
+                                            ui.checkbox(&mut checked, "");
+                                            ui.label(RichText::new(icon).size(14.0));
+                                            ui.vertical(|ui| {
+                                                ui.label(RichText::new(rom).size(11.0).strong().color(Color32::WHITE));
+                                                ui.label(RichText::new(format!("System: {}", p_state.platform.name)).size(9.0).color(Color32::from_gray(140)));
+                                            });
+
+                                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                if is_top {
+                                                    badge_green(ui, "Top Classic");
+                                                }
+                                                ui.label(RichText::new("[48 MB]").size(9.5).color(Color32::from_gray(150)));
+                                            });
+                                        });
+                                    });
+                                ui.add_space(2.0);
+                            }
+                        }
+                    });
+                });
+
+                // Right Column: favorites.json Code Preview
+                let right_ui = &mut fcols[1];
+                right_ui.vertical(|ui| {
+                    card_frame().show(ui, |ui| {
+                        ui.label(RichText::new("favorites.json Code Preview").size(11.5).strong().color(Color32::WHITE));
+                        ui.add_space(4.0);
+
+                        let p_info = &self.platform_states[active_idx].platform;
+                        let sample_fav = FavoritesList::from_default_platform(p_info);
+                        if let Ok(mut json_code) = serde_json::to_string_pretty(&sample_fav) {
+                            ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                                ui.add(
+                                    egui::TextEdit::multiline(&mut json_code)
+                                        .font(egui::TextStyle::Monospace)
+                                        .desired_rows(18)
+                                        .desired_width(f32::INFINITY),
+                                );
+                            });
+                        }
+                    });
+                });
+            });
+
+            ui.add_space(8.0);
+            ui.separator();
+
+            // Bottom Footer
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("18 of 120 selected").size(11.0).strong().color(Color32::from_rgb(0, 229, 255)));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let save_btn = egui::Button::new(RichText::new("Save favorites.json").size(11.5).strong().color(Color32::BLACK))
+                        .fill(Color32::from_rgb(16, 185, 129));
+                    if ui.add(save_btn).clicked() {
+                        self.open_favorites_editor(active_idx);
+                    }
+                    if ui.button(RichText::new("🔄 Refresh List").size(11.0)).clicked() {
+                        self.scan_source_folder();
+                    }
+                });
+            });
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Consoles Manager Tab View
+    // ------------------------------------------------------------------------
+    fn render_consoles_tab_view(&mut self, ui: &mut egui::Ui) {
+        card_frame().show(ui, |ui| {
+            render_card_header(ui, "Consoles & Directory Architecture Manager", |ui| {
+                badge_purple(ui, &format!("{} Supported Systems", self.platform_states.len()));
+            });
+
+            // Source Directory Bar
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("Source Library Root:").size(11.0).strong().color(Color32::WHITE));
+                ui.text_edit_singleline(&mut self.source_path);
+                if ui.button(RichText::new("📂 Browse...").size(11.0)).clicked() {
+                    if let Some(folder) = rfd::FileDialog::new().pick_folder() {
+                        self.source_path = folder.to_string_lossy().to_string();
+                        self.scan_source_folder();
+                    }
+                }
+                if ui.button(RichText::new("🔄 Rescan").size(11.0)).clicked() {
+                    self.scan_source_folder();
+                }
+            });
+
+            ui.add_space(8.0);
+
+            // Table of Platforms
+            ScrollArea::vertical().max_height(460.0).show(ui, |ui| {
+                let mut open_idx = None;
+                for idx in 0..self.platform_states.len() {
+                    let p_state = &mut self.platform_states[idx];
+                    let is_found = p_state.found_dir.is_some();
+                    let plat_name = p_state.platform.name;
+                    let plat_id_upper = p_state.platform.id.to_uppercase();
+                    let rom_count = p_state.rom_files.len();
+                    let path_str = p_state.found_dir.as_ref().map(|d| d.display().to_string()).unwrap_or_else(|| "Directory not found in source library".to_string());
+
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(11, 16, 24))
+                        .stroke(Stroke::new(1.0, Color32::from_rgb(24, 34, 48)))
+                        .corner_radius(6)
+                        .inner_margin(Margin::symmetric(10, 8))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut p_state.enabled, "");
+                                ui.vertical(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(RichText::new(plat_name).size(12.0).strong().color(Color32::WHITE));
+                                        badge_cyan(ui, &plat_id_upper);
+                                    });
+
+                                    ui.label(RichText::new(path_str).size(10.0).color(if is_found { Color32::from_gray(160) } else { Color32::from_gray(110) }));
+                                });
+
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    if curated_favorites_button(ui) {
+                                        open_idx = Some(idx);
+                                    }
+
+                                    badge_green(ui, &format!("{} ROMs", rom_count));
+                                });
+                            });
+                        });
+                    ui.add_space(4.0);
+                }
+                if let Some(idx) = open_idx {
+                    self.open_favorites_editor(idx);
+                }
+            });
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Settings Tab View
+    // ------------------------------------------------------------------------
+    fn render_settings_tab_view(&mut self, ui: &mut egui::Ui) {
+        card_frame().show(ui, |ui| {
+            render_card_header(ui, "Application & Storage Safety Settings", |ui| {
+                badge_cyan(ui, "Configuration");
+            });
+
+            ui.columns(2, |cols| {
+                // Column 1: Storage Protection
+                cols[0].vertical(|ui| {
+                    ui.label(RichText::new("Storage Safety Safeguards").size(12.0).strong().color(Color32::WHITE));
+                    ui.add_space(4.0);
+                    ui.label(RichText::new("• Formatting is strictly restricted to removable USB and SD cards.\n• System drive C: and internal fixed SSDs (NVMe) are hardware locked.\n• Diskpart clean wipe restores 100% capacity from trapped Linux/ext4 partitions.").size(10.0).color(Color32::from_gray(160)));
+                });
+
+                // Column 2: Libretro CDN Scraper
+                cols[1].vertical(|ui| {
+                    ui.label(RichText::new("Libretro Artwork CDN Engine").size(12.0).strong().color(Color32::WHITE));
+                    ui.add_space(4.0);
+                    ui.label(RichText::new("• Base URL: https://raw.githubusercontent.com/libretro-thumbnails/libretro-thumbnails/master/\n• Automatic name sanitization (&, :, /, \\ converted to _).\n• Zero API key requirement with high-speed parallel asset syncing.").size(10.0).color(Color32::from_gray(160)));
+                });
+            });
+
+            ui.add_space(16.0);
+            ui.separator();
+            ui.label(RichText::new("Retro CardMaker v0.2.1 • Native Windows x64 Build • Pair programming Antigravity").size(10.0).color(Color32::from_gray(140)));
+        });
     }
 }

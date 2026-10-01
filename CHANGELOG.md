@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-10-02
+
+### Added
+- **Full AAA UX Desktop Redesign (Unified Studio Cockpit)**:
+  - Replaced isolated wizard steps with the approved unified 3-tier Master Studio Cockpit:
+    - **Tier 1 (Storage & Profiles)**: `1. SD Card & Format` with dropdown, filesystem indicator, `[🛡️ SAFETY LOCK]` badge, format toggles, Diskpart MBR clean wipe, and `2. Device Profile` with horizontal launcher cards.
+    - **Tier 2 (Consoles & ROMs)**: `3. Consoles Selection` with vertical list, ROM count badges, active row highlight, and glowing `[ ⭐ CURATED FAVORITES ]` buttons, paired with `4. Live ROMs & Boxart Preview` with search, thumbnails, file sizes, and `Top Classic` badges.
+    - **Tier 3 (Cockpit Progress & Logs)**: `5. QuickInstaller Cockpit` with glowing neon cyan progress bars (`PLATFORM SYNC` and `FILE COPY`) and giant launch CTA, paired with `Terminal Console (terminal.log)` with retro dots and syntax-highlighted live execution stream.
+  - Windows 11 style header bar with navigation pills: `[ ⊞ Dashboard ]`, `[ 🖵 Consoles ]`, `[ ⭐ Favorites ]`, `[ ⚙ Settings ]` and target storage status pill.
+  - 5-step Chevron Ribbon (`❶ SD CARD & FORMAT` ➔ `❷ DEVICE PROFILE` ➔ `❸ ROMS & FAVORITES` ➔ `❹ BOXART SCRAPING` ➔ `❺ QUICKINSTALL`).
+- **Curated Favorites Modal Dialog**:
+  - Direct 1-click launch from any console row via `[ ⭐ CURATED FAVORITES ]`.
+  - 2-column modal layout with live artwork preview, metadata inspection, keyword rules, and lime green `[ Save favorites.json ]` button.
+- **Full-Screen Curated Favorites View**:
+  - Complete favorites manager accessible from the top navigation bar with platform switcher chips and real-time syntax-formatted `favorites.json Code Preview`.
+
 ## [0.2.1] - 2026-10-02
 
 ### Added
