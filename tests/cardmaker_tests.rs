@@ -1,6 +1,6 @@
 use std::path::Path;
 use retro_cardmaker::art_scraper::ArtScraper;
-use retro_cardmaker::drives::{format_drive, FormatFileSystem};
+use retro_cardmaker::drives::{format_drive, wipe_and_repartition_drive, FormatFileSystem};
 use retro_cardmaker::favorites::{FavoritesList, load_favorites, save_favorites};
 use retro_cardmaker::launcher_profiles::{LauncherProfile, ProfileId};
 use retro_cardmaker::platforms::{find_platform_by_dir_name, find_platform_by_id, PLATFORMS};
@@ -163,4 +163,54 @@ fn test_safety_guard_protects_system_drive() {
     let res_lower = format_drive("c:\\", FormatFileSystem::Fat32, "TEST");
     assert!(res_lower.is_err());
     assert!(res_lower.err().unwrap().contains("SAFETY VIOLATION"));
+}
+
+#[test]
+fn test_safety_guard_protects_repartition() {
+    // Attempting to wipe and repartition C: drive must be blocked immediately!
+    let res = wipe_and_repartition_drive("C:", FormatFileSystem::ExFat, "TEST");
+    assert!(res.is_err());
+    let err = res.err().unwrap();
+    assert!(err.contains("SAFETY VIOLATION"));
+
+    let res_lower = wipe_and_repartition_drive("c:\\", FormatFileSystem::Fat32, "TEST");
+    assert!(res_lower.is_err());
+    assert!(res_lower.err().unwrap().contains("SAFETY VIOLATION"));
+}
+
+#[test]
+fn test_user_requested_platform_aliases() {
+    // User requested explicit natural folder names:
+    // - gbc is game boy color
+    // - gba is game boy advance
+    // - sega master system is sega master system
+    // - sega mega drive is sega mega drive
+    // - sega saturn is sega saturn
+    // - sega game gear is sega game gear
+    let gbc = find_platform_by_dir_name("game boy color").expect("game boy color should resolve to gbc");
+    assert_eq!(gbc.id, "gbc");
+
+    let gba = find_platform_by_dir_name("game boy advance").expect("game boy advance should resolve to gba");
+    assert_eq!(gba.id, "gba");
+
+    let sms = find_platform_by_dir_name("sega master system").expect("sega master system should resolve to sms");
+    assert_eq!(sms.id, "sms");
+
+    let md = find_platform_by_dir_name("sega mega drive").expect("sega mega drive should resolve to megadrive");
+    assert_eq!(md.id, "megadrive");
+
+    let genesis = find_platform_by_dir_name("sega genesis").expect("sega genesis should resolve to megadrive");
+    assert_eq!(genesis.id, "megadrive");
+
+    let saturn = find_platform_by_dir_name("sega saturn").expect("sega saturn should resolve to saturn");
+    assert_eq!(saturn.id, "saturn");
+
+    let gg = find_platform_by_dir_name("sega game gear").expect("sega game gear should resolve to gamegear");
+    assert_eq!(gg.id, "gamegear");
+
+    let gc = find_platform_by_dir_name("gamecube").expect("gamecube should resolve to gamecube");
+    assert_eq!(gc.id, "gamecube");
+
+    let wii = find_platform_by_dir_name("nintendo wii").expect("nintendo wii should resolve to wii");
+    assert_eq!(wii.id, "wii");
 }

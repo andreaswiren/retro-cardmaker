@@ -3,7 +3,7 @@
 [![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg)](https://www.rust-lang.org)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-green.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-v0.2.0-brightgreen.svg)](https://github.com/andreaswiren/retro-cardmaker/releases)
+[![Release](https://img.shields.io/badge/Release-v0.2.1-brightgreen.svg)](https://github.com/andreaswiren/retro-cardmaker/releases)
 
 **Retro CardMaker** is a high-performance Windows application and QuickInstaller designed to format SD-cards, organize ROM directories, manage curated "Best of" game shortlists (`favorites.json`), and automatically scrape high-resolution boxart formatted specifically for retro handheld devices and frontends.
 
@@ -11,12 +11,14 @@
 
 ## 🌟 Key Features
 
-### 1. 💾 Safe SD-Card Formatting & Guidance
-- **Drive Auto-Detection**: Discovers connected disks, volume labels, and automatically flags removable SD-cards and USB drives.
-- **Strict Protection Guard**: System drive `C:` and Windows operating system partitions are strictly protected against accidental formatting.
-- **Filesystem Presets**:
-  - `exFAT`: Recommended for modern handhelds (Anbernic RG Cube, Odin, Steam Deck, Android) and SD cards 64GB+.
-  - `FAT32`: Recommended for legacy handhelds (Anbernic RG350, RG35XX GarlicOS, Miyoo Mini OnionOS) and cards $\le$ 32GB.
+### 1. 💾 Safe SD-Card Formatting, Repartitioning & Guidance
+- **Removable-Only Drive Formatting Guard**: Formatting is strictly restricted to removable USB flash drives and SD cards (`is_removable == true`). System disk `C:` and fixed internal NVMe SSDs are locked against accidental formatting in both GUI and CLI.
+- **⚡ Full Repartition & Clean Wipe (Diskpart MBR)**: Completely wipes all partition tables, removing hidden OEM, recovery, and Linux `ext4` partitions left over from prior handheld OS installations (GarlicOS, OnionOS, ArkOS, Batocera). Reclaims 100% of physical storage into a single active MBR primary partition.
+- **Drive Auto-Detection & Trapped Storage Alerts**: Discovers connected disks, volume labels, physical disk sizes, and flags when unallocated or foreign partitions are trapping storage capacity.
+- **Filesystem Sizing & Limits Guidance Engine**:
+  - `exFAT`: Recommended for modern handhelds (Anbernic RG Cube, Odin, Steam Deck, Android) and SD cards 64GB+. No 4GB file size limit (essential for PS2, Wii, PSP ISOs, and multi-disc CHD files).
+  - `FAT32`: Recommended for legacy handhelds (Anbernic RG350, RG35XX GarlicOS, Miyoo Mini OnionOS) and cards $\le$ 32GB. Enforces awareness of the strict 4GB single file size limit and Windows 32GB volume boundary.
+- **Dynamic Smart Recommendations**: Analyzes actual physical card capacity and displays contextual advice for optimal filesystem selection.
 - **Customizable Target Subfolder**: Install ROMs to SD-card root or dedicated folders like `roms/` or `Roms/`.
 
 ### 2. 🕹️ Device & Frontend Presets
@@ -31,11 +33,28 @@ Pre-configured directory layouts and artwork naming rules matching leading emula
 - **Batocera / ArkOS / AmberELEC**: `roms/<system>/images/<rom>-image.png`.
 - **Custom**: User-definable layout.
 
-### 3. 📂 Supported Platforms & File Types
-Built-in platform scanner supporting all primary retro consoles:
-- **Nintendo**: NES (`.nes`, `.fds`), SNES (`.sfc`, `.smc`), Nintendo 64 (`.z64`, `.n64`), Game Boy (`.gb`), Game Boy Color (`.gbc`), Game Boy Advance (`.gba`), Nintendo DS (`.nds`).
-- **Sega**: Master System (`.sms`), Mega Drive / Genesis (`.md`, `.gen`), Saturn (`.chd`, `.iso`, `.cue`), Dreamcast (`.chd`, `.gdi`, `.cdi`).
-- **Sony**: PlayStation 1 / PSX (`.chd`, `.cue`, `.pbp`), PlayStation 2 (`.chd`, `.iso`, `.cso`), PlayStation Portable (`.cso`, `.iso`, `.pbp`).
+### 3. 📂 Supported Platforms & Natural Folder Detection
+Built-in platform scanner supporting flexible, case-insensitive, and normalized folder naming:
+- **Nintendo**:
+  - NES / Famicom (`nes`, `fc`, `famicom`, `nintendo entertainment system`)
+  - Super Nintendo (`snes`, `sfc`, `super nintendo`, `super nintendo entertainment system`)
+  - Nintendo 64 (`n64`, `nintendo 64`)
+  - Game Boy (`gb`, `game boy`, `gameboy`)
+  - Game Boy Color (`gbc`, `game boy color`, `gameboy color`, `gb color`)
+  - Game Boy Advance (`gba`, `game boy advance`, `gameboy advance`, `gb advance`)
+  - Nintendo DS (`nds`, `ds`, `nintendo ds`)
+  - Nintendo GameCube (`gamecube`, `gc`, `nintendo gamecube`)
+  - Nintendo Wii (`wii`, `nintendo wii`)
+- **Sega**:
+  - Sega Master System (`sms`, `master system`, `sega master system`)
+  - Sega Mega Drive / Genesis (`megadrive`, `genesis`, `md`, `sega mega drive`, `sega genesis`)
+  - Sega Game Gear (`gamegear`, `gg`, `sega game gear`)
+  - Sega Saturn (`saturn`, `ss`, `sega saturn`)
+  - Sega Dreamcast (`dreamcast`, `dc`, `sega dreamcast`)
+- **Sony**:
+  - PlayStation 1 / PSX (`psx`, `ps1`, `playstation`, `sony playstation`)
+  - PlayStation 2 (`ps2`, `playstation 2`, `sony playstation 2`)
+  - PlayStation Portable (`psp`, `playstation portable`, `sony playstation portable`)
 
 ### 4. ⭐ Curated Games & `favorites.json`
 - Supports copying either the **Full ROM library** or only a **Curated Shortlist** of essential classics.

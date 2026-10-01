@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-02
+
+### Added
+- **Removable-Only Drive Formatting Guard**:
+  - Formatting operations are strictly locked to removable USB flash drives and SD-cards (`is_removable == true`).
+  - Fixed internal drives (NVMe SSDs, internal hard disks) and system drives (`C:`) are locked against accidental formatting in both GUI and CLI.
+- **Full Repartition & Clean Wipe (Diskpart MBR Engine)**:
+  - Added full disk wiping via automated `diskpart clean` to eradicate foreign Linux ext4/swap/OEM hidden partitions left by handheld operating systems (GarlicOS, OnionOS, ArkOS, Batocera).
+  - Converts disks to standard MBR and creates a single active full-capacity primary partition, recovering 100% of physical storage.
+  - Automatic detection of trapped capacity with visual alert indicators.
+- **Filesystem Sizing & Limits Guidance Engine**:
+  - Comprehensive side-by-side selection between `exFAT` (recommended for 64GB+, supports games >4GB like PS2/GameCube/Wii/PSP ISOs) and `FAT32` (strict 4GB file size limit, 32GB volume boundary, required for legacy microcontrollers).
+  - Dynamic smart recommendation banner analyzing actual physical card capacity.
+- **Natural Folder Resolution & Aliases**:
+  - Added support for natural directory names: `gbc` = `game boy color`, `gba` = `game boy advance`, `sms` = `sega master system`, `megadrive` = `sega mega drive` / `sega genesis`, `saturn` = `sega saturn`, `gamegear` = `sega game gear`, `gamecube`, and `wii`.
+  - Normalized, case-insensitive, punctuation-agnostic directory scanner matching user folder structures reliably.
+
 ## [0.2.0] - 2026-10-01
 
 ### Added

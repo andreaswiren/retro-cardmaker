@@ -14,7 +14,7 @@ use crate::installer::{
     PlatformInstallConfig,
 };
 use crate::launcher_profiles::{LauncherProfile, ProfileId, PROFILES};
-use crate::platforms::{find_platform_by_id, PlatformInfo, PLATFORMS};
+use crate::platforms::{find_platform_by_dir_name, find_platform_by_id, PlatformInfo, PLATFORMS};
 
 #[derive(Clone)]
 pub struct PlatformUiState {
@@ -205,6 +205,7 @@ pub struct RetroCardMakerApp {
     pub format_fs: FormatFileSystem,
     pub volume_label: String,
     pub format_confirmed: bool,
+    pub wipe_and_repartition: bool,
 
     // Step 2: Launcher & Device Profile
     pub selected_profile_id: ProfileId,
@@ -253,6 +254,7 @@ impl RetroCardMakerApp {
             format_fs: FormatFileSystem::ExFat,
             volume_label: "RETRO".to_string(),
             format_confirmed: false,
+            wipe_and_repartition: false,
 
             selected_profile_id: default_profile,
 
@@ -337,41 +339,71 @@ impl RetroCardMakerApp {
             return;
         }
 
+        // List subdirectories for flexible directory name matching
+        let subdirs: Vec<PathBuf> = match std::fs::read_dir(root) {
+            Ok(entries) => entries
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| p.is_dir())
+                .collect(),
+            Err(_) => Vec::new(),
+        };
+
         for p_state in &mut self.platform_states {
             p_state.found_dir = None;
             p_state.rom_files.clear();
             p_state.favorites = None;
 
-            for alias in p_state.platform.folder_aliases {
-                let candidate = root.join(alias);
-                if candidate.is_dir() {
-                    p_state.found_dir = Some(candidate.clone());
-                    p_state.favorites = load_favorites(&candidate);
+            // 1. Check if any existing subdirectory matches this platform
+            let mut matched_candidate = None;
+            for subdir in &subdirs {
+                if let Some(dir_name) = subdir.file_name().and_then(|s| s.to_str()) {
+                    if let Some(matched_p) = find_platform_by_dir_name(dir_name) {
+                        if matched_p.id == p_state.platform.id {
+                            matched_candidate = Some(subdir.clone());
+                            break;
+                        }
+                    }
+                }
+            }
 
-                    for entry in WalkDir::new(&candidate)
-                        .max_depth(3)
-                        .into_iter()
-                        .filter_map(|e| e.ok())
-                    {
-                        if entry.file_type().is_file() {
-                            let path = entry.path();
-                            if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-                                let lower = name.to_lowercase();
-                                if p_state
-                                    .platform
-                                    .extensions
-                                    .iter()
-                                    .any(|&ext| lower.ends_with(ext))
-                                {
-                                    p_state.rom_files.push(name.to_string());
-                                }
+            // 2. Direct alias candidate fallback
+            if matched_candidate.is_none() {
+                for alias in p_state.platform.folder_aliases {
+                    let candidate = root.join(alias);
+                    if candidate.is_dir() {
+                        matched_candidate = Some(candidate);
+                        break;
+                    }
+                }
+            }
+
+            if let Some(candidate) = matched_candidate {
+                p_state.found_dir = Some(candidate.clone());
+                p_state.favorites = load_favorites(&candidate);
+
+                for entry in WalkDir::new(&candidate)
+                    .max_depth(3)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
+                    if entry.file_type().is_file() {
+                        let path = entry.path();
+                        if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
+                            let lower = name.to_lowercase();
+                            if p_state
+                                .platform
+                                .extensions
+                                .iter()
+                                .any(|&ext| lower.ends_with(ext))
+                            {
+                                p_state.rom_files.push(name.to_string());
                             }
                         }
                     }
-                    p_state.rom_files.sort();
-                    p_state.rom_files.dedup();
-                    break;
                 }
+                p_state.rom_files.sort();
+                p_state.rom_files.dedup();
             }
         }
     }
@@ -384,6 +416,10 @@ impl RetroCardMakerApp {
         let drive = &self.drives[self.selected_drive_idx];
         if self.do_format && drive.is_system {
             self.install_error = Some("Cannot format system drive C:!".to_string());
+            return;
+        }
+        if self.do_format && !drive.is_removable {
+            self.install_error = Some("Safety violation: Formatting is strictly restricted to removable USB and SD-card drives.".to_string());
             return;
         }
 
@@ -423,6 +459,7 @@ impl RetroCardMakerApp {
             drive_letter: clean_drive.to_string(),
             destination_path: dest_path,
             format_option: format_opt,
+            wipe_and_repartition: self.wipe_and_repartition && self.do_format,
             volume_label: self.volume_label.clone(),
             profile_id: self.selected_profile_id,
             platforms: platform_configs,
@@ -742,21 +779,27 @@ impl RetroCardMakerApp {
                                             .strong()
                                             .color(Color32::WHITE),
                                     );
-                                    let type_str = if drive.is_removable {
+                                    let type_str = if drive.is_system {
+                                        "System Disk"
+                                    } else if drive.is_removable {
                                         "Removable SD/USB"
                                     } else {
                                         "Fixed Disk"
                                     };
+                                    let mut details = format!(
+                                        "{} • {} • Free: {} / {}",
+                                        type_str,
+                                        drive.file_system,
+                                        drive.free_gb_str(),
+                                        drive.total_gb_str()
+                                    );
+                                    if drive.has_hidden_partitions {
+                                        details.push_str(&format!(" (Physical: {})", drive.physical_gb_str()));
+                                    }
                                     ui.label(
-                                        RichText::new(format!(
-                                            "{} • {} • Free: {} / {}",
-                                            type_str,
-                                            drive.file_system,
-                                            drive.free_gb_str(),
-                                            drive.total_gb_str()
-                                        ))
-                                        .size(10.0)
-                                        .color(Color32::from_gray(150)),
+                                        RichText::new(details)
+                                            .size(10.0)
+                                            .color(Color32::from_gray(150)),
                                     );
                                 });
 
@@ -765,6 +808,8 @@ impl RetroCardMakerApp {
                                     |ui| {
                                         if is_sys {
                                             badge_red(ui, "PROTECTED");
+                                        } else if drive.has_hidden_partitions {
+                                            badge_amber(ui, "Hidden Partitions");
                                         } else if drive.is_removable {
                                             badge_green(ui, "Recommended");
                                         }
@@ -792,151 +837,303 @@ impl RetroCardMakerApp {
                 ui.add_space(8.0);
 
                 // Format Settings Subcard
+                let selected_drive = self.drives.get(self.selected_drive_idx).cloned();
+                let is_removable = selected_drive.as_ref().map(|d| d.is_removable).unwrap_or(false);
+                let is_system = selected_drive.as_ref().map(|d| d.is_system).unwrap_or(false);
+                let has_hidden = selected_drive.as_ref().map(|d| d.has_hidden_partitions).unwrap_or(false);
+
                 egui::Frame::new()
                     .fill(Color32::from_rgb(10, 14, 20))
                     .stroke(Stroke::new(1.0, Color32::from_rgb(24, 32, 44)))
                     .corner_radius(6)
                     .inner_margin(Margin::same(10))
                     .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.vertical(|ui| {
-                                ui.label(
-                                    RichText::new("Format SD-Card before copying")
-                                        .size(11.5)
-                                        .strong()
-                                        .color(Color32::WHITE),
-                                );
-                                ui.label(
-                                    RichText::new(
-                                        "Formats storage cleanly with optimal cluster allocation.",
-                                    )
-                                    .size(10.0)
-                                    .color(Color32::from_gray(140)),
-                                );
-                            });
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    ui.checkbox(&mut self.do_format, "");
-                                },
-                            );
-                        });
-
-                        if self.do_format {
-                            ui.add_space(6.0);
-                            ui.columns(2, |fcols| {
-                                // exFAT Box
-                                let exfat_sel = self.format_fs == FormatFileSystem::ExFat;
-                                let frame1 = if exfat_sel {
-                                    card_frame_selected()
-                                } else {
-                                    card_frame()
-                                };
-                                let inner1 = frame1.show(&mut fcols[0], |ui| {
-                                    ui.vertical(|ui| {
-                                        ui.label(
-                                            RichText::new("exFAT (Recommended)")
-                                                .size(11.0)
-                                                .strong()
-                                                .color(if exfat_sel {
-                                                    Color32::from_rgb(0, 229, 255)
-                                                } else {
-                                                    Color32::WHITE
-                                                }),
-                                        );
-                                        ui.label(
-                                            RichText::new(
-                                                "Modern handhelds (RG Cube, Odin, Deck) & 64GB+.",
-                                            )
-                                            .size(9.5)
-                                            .color(Color32::from_gray(140)),
-                                        );
-                                    });
-                                });
-                                let id1 = inner1.response.id.with("fs_exfat_btn");
-                                if fcols[0]
-                                    .interact(inner1.response.rect, id1, egui::Sense::click())
-                                    .clicked()
-                                {
-                                    self.format_fs = FormatFileSystem::ExFat;
-                                }
-
-                                // FAT32 Box
-                                let fat32_sel = self.format_fs == FormatFileSystem::Fat32;
-                                let frame2 = if fat32_sel {
-                                    card_frame_selected()
-                                } else {
-                                    card_frame()
-                                };
-                                let inner2 = frame2.show(&mut fcols[1], |ui| {
-                                    ui.vertical(|ui| {
-                                        ui.label(
-                                            RichText::new("FAT32")
-                                                .size(11.0)
-                                                .strong()
-                                                .color(if fat32_sel {
-                                                    Color32::from_rgb(0, 229, 255)
-                                                } else {
-                                                    Color32::WHITE
-                                                }),
-                                        );
-                                        ui.label(
-                                            RichText::new(
-                                                "Legacy handhelds (RG350, Miyoo, GarlicOS) & ≤32GB.",
-                                            )
-                                            .size(9.5)
-                                            .color(Color32::from_gray(140)),
-                                        );
-                                    });
-                                });
-                                let id2 = inner2.response.id.with("fs_fat32_btn");
-                                if fcols[1]
-                                    .interact(inner2.response.rect, id2, egui::Sense::click())
-                                    .clicked()
-                                {
-                                    self.format_fs = FormatFileSystem::Fat32;
-                                }
-                            });
-
-                            ui.add_space(6.0);
+                        if !is_removable || is_system {
+                            // Non-removable or system drives: FORMAT STRICTLY LOCKED
                             ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new("Volume Label:")
-                                        .size(11.0)
-                                        .color(Color32::from_gray(180)),
+                                ui.vertical(|ui| {
+                                    ui.label(
+                                        RichText::new("Format SD-Card / USB Drive")
+                                            .size(11.5)
+                                            .strong()
+                                            .color(Color32::from_gray(160)),
+                                    );
+                                    ui.label(
+                                        RichText::new("Formatting is disabled for fixed and internal system drives.")
+                                            .size(10.0)
+                                            .color(Color32::from_gray(120)),
+                                    );
+                                });
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        let mut disabled_fmt = false;
+                                        ui.add_enabled(false, egui::Checkbox::new(&mut disabled_fmt, ""));
+                                    },
                                 );
-                                ui.text_edit_singleline(&mut self.volume_label);
                             });
 
-                            ui.add_space(4.0);
-                            ui.checkbox(
-                                &mut self.format_confirmed,
-                                RichText::new(
-                                    "I understand formatting will erase all data on this target drive.",
-                                )
-                                .size(10.5)
-                                .color(Color32::from_rgb(255, 180, 100)),
-                            );
-                        }
+                            ui.add_space(6.0);
+                            egui::Frame::new()
+                                .fill(Color32::from_rgb(32, 16, 18))
+                                .stroke(Stroke::new(1.0, Color32::from_rgb(180, 50, 50)))
+                                .corner_radius(6)
+                                .inner_margin(Margin::same(8))
+                                .show(ui, |ui| {
+                                    ui.label(
+                                        RichText::new(
+                                            "🔒 FORMAT LOCKED: Formatting is strictly restricted to removable USB and SD-card drives.\nSystem disks (C:) and fixed internal NVMe/SSDs cannot be formatted.",
+                                        )
+                                        .size(10.5)
+                                        .color(Color32::from_rgb(255, 160, 160)),
+                                    );
+                                });
+                        } else {
+                            // Removable drive: Format allowed
+                            ui.horizontal(|ui| {
+                                ui.vertical(|ui| {
+                                    ui.label(
+                                        RichText::new("Format SD-Card before copying")
+                                            .size(11.5)
+                                            .strong()
+                                            .color(Color32::WHITE),
+                                    );
+                                    ui.label(
+                                        RichText::new(
+                                            "Formats storage cleanly with optimal cluster allocation.",
+                                        )
+                                        .size(10.0)
+                                        .color(Color32::from_gray(140)),
+                                    );
+                                });
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        ui.checkbox(&mut self.do_format, "");
+                                    },
+                                );
+                            });
 
-                        if let Some(drive) = self.drives.get(self.selected_drive_idx) {
-                            if drive.is_system {
+                            if self.do_format {
                                 ui.add_space(6.0);
+
+                                // If drive has hidden partitions:
+                                if has_hidden {
+                                    let phys_str = selected_drive.as_ref().map(|d| d.physical_gb_str()).unwrap_or_default();
+                                    let vol_str = selected_drive.as_ref().map(|d| d.total_gb_str()).unwrap_or_default();
+                                    egui::Frame::new()
+                                        .fill(Color32::from_rgb(42, 28, 10))
+                                        .stroke(Stroke::new(1.0, Color32::from_rgb(245, 158, 11)))
+                                        .corner_radius(6)
+                                        .inner_margin(Margin::same(8))
+                                        .show(ui, |ui| {
+                                            ui.horizontal(|ui| {
+                                                ui.label(RichText::new("⚠️").size(14.0));
+                                                ui.vertical(|ui| {
+                                                    ui.label(
+                                                        RichText::new("Hidden / Foreign Partitions Detected!")
+                                                            .size(11.0)
+                                                            .strong()
+                                                            .color(Color32::from_rgb(255, 200, 100)),
+                                                    );
+                                                    ui.label(
+                                                        RichText::new(format!(
+                                                            "Volume shows {} but physical card is {}. Unallocated/Linux ext4 partitions are trapping capacity (from prior handheld OS like OnionOS, GarlicOS, ArkOS).",
+                                                            vol_str, phys_str
+                                                        ))
+                                                        .size(9.5)
+                                                        .color(Color32::from_gray(200)),
+                                                    );
+                                                });
+                                            });
+                                        });
+                                    ui.add_space(6.0);
+                                }
+
+                                // Full Repartition & Clean Wipe (Diskpart MBR) Checkbox
+                                let is_wipe = self.wipe_and_repartition;
                                 egui::Frame::new()
-                                    .fill(Color32::from_rgb(40, 15, 18))
-                                    .stroke(Stroke::new(1.0, Color32::from_rgb(239, 68, 68)))
+                                    .fill(if is_wipe { Color32::from_rgb(20, 28, 38) } else { Color32::from_rgb(14, 18, 26) })
+                                    .stroke(Stroke::new(1.0, if is_wipe { Color32::from_rgb(0, 229, 255) } else { Color32::from_rgb(32, 42, 58) }))
                                     .corner_radius(6)
                                     .inner_margin(Margin::same(8))
                                     .show(ui, |ui| {
+                                        ui.horizontal(|ui| {
+                                            let text_color = if is_wipe { Color32::from_rgb(0, 229, 255) } else { Color32::WHITE };
+                                            ui.checkbox(
+                                                &mut self.wipe_and_repartition,
+                                                RichText::new("Full Repartition & Clean Wipe (Diskpart MBR)")
+                                                    .size(11.0)
+                                                    .strong()
+                                                    .color(text_color),
+                                            );
+                                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                if has_hidden {
+                                                    badge_amber(ui, "Recommended");
+                                                } else {
+                                                    badge_cyan(ui, "Deep Clean");
+                                                }
+                                            });
+                                        });
                                         ui.label(
-                                            RichText::new(
-                                                "🛡️ SYSTEM DRIVE PROTECTED: Drive C: is strictly locked against formatting.",
-                                            )
-                                            .size(10.5)
-                                            .color(Color32::from_rgb(255, 140, 140))
-                                            .strong(),
+                                            RichText::new("Wipes all partition tables, deletes hidden Linux/ext4/recovery partitions, converts to standard MBR, and restores 100% of physical capacity into a single active partition.")
+                                                .size(9.5)
+                                                .color(Color32::from_gray(150)),
                                         );
                                     });
+
+                                ui.add_space(8.0);
+
+                                // Format selection: exFAT vs FAT32 with detailed sizing & limits
+                                ui.label(
+                                    RichText::new("Choose Filesystem & Sizing Guide:")
+                                        .size(11.0)
+                                        .strong()
+                                        .color(Color32::WHITE),
+                                );
+                                ui.add_space(4.0);
+
+                                ui.columns(2, |fcols| {
+                                    // exFAT Box
+                                    let exfat_sel = self.format_fs == FormatFileSystem::ExFat;
+                                    let frame1 = if exfat_sel {
+                                        card_frame_selected()
+                                    } else {
+                                        card_frame()
+                                    };
+                                    let inner1 = frame1.show(&mut fcols[0], |ui| {
+                                        ui.vertical(|ui| {
+                                            ui.horizontal(|ui| {
+                                                ui.label(
+                                                    RichText::new("exFAT")
+                                                        .size(11.0)
+                                                        .strong()
+                                                        .color(if exfat_sel {
+                                                            Color32::from_rgb(0, 229, 255)
+                                                        } else {
+                                                            Color32::WHITE
+                                                        }),
+                                                );
+                                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                    badge_cyan(ui, "Modern 64GB+");
+                                                });
+                                            });
+                                            ui.add_space(2.0);
+                                            ui.label(
+                                                RichText::new("• Best for 64GB, 128GB, 256GB, 512GB+\n• No 4GB single file size limit\n• Ideal for PS2, Wii, PSP ISOs & CHD\n• Supported by RG Cube, Odin, Deck, Switch")
+                                                    .size(9.5)
+                                                    .color(Color32::from_gray(140)),
+                                            );
+                                        });
+                                    });
+                                    let id1 = inner1.response.id.with("fs_exfat_btn");
+                                    if fcols[0]
+                                        .interact(inner1.response.rect, id1, egui::Sense::click())
+                                        .clicked()
+                                    {
+                                        self.format_fs = FormatFileSystem::ExFat;
+                                    }
+
+                                    // FAT32 Box
+                                    let fat32_sel = self.format_fs == FormatFileSystem::Fat32;
+                                    let frame2 = if fat32_sel {
+                                        card_frame_selected()
+                                    } else {
+                                        card_frame()
+                                    };
+                                    let inner2 = frame2.show(&mut fcols[1], |ui| {
+                                        ui.vertical(|ui| {
+                                            ui.horizontal(|ui| {
+                                                ui.label(
+                                                    RichText::new("FAT32")
+                                                        .size(11.0)
+                                                        .strong()
+                                                        .color(if fat32_sel {
+                                                            Color32::from_rgb(0, 229, 255)
+                                                        } else {
+                                                            Color32::WHITE
+                                                        }),
+                                                );
+                                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                                    badge_purple(ui, "Legacy ≤32GB");
+                                                });
+                                            });
+                                            ui.add_space(2.0);
+                                            ui.label(
+                                                RichText::new("• Best for cards ≤ 32 GB\n• Strict 4GB file size limit (games >4GB fail)\n• Required by older microcontrollers\n• Miyoo Mini, RG350, GarlicOS, TrimUI")
+                                                    .size(9.5)
+                                                    .color(Color32::from_gray(140)),
+                                            );
+                                        });
+                                    });
+                                    let id2 = inner2.response.id.with("fs_fat32_btn");
+                                    if fcols[1]
+                                        .interact(inner2.response.rect, id2, egui::Sense::click())
+                                        .clicked()
+                                    {
+                                        self.format_fs = FormatFileSystem::Fat32;
+                                    }
+                                });
+
+                                // Smart Recommendation Banner based on selected drive size
+                                ui.add_space(6.0);
+                                if let Some(drive) = selected_drive.as_ref() {
+                                    let total_bytes = drive.physical_disk_size.unwrap_or(drive.total_bytes);
+                                    let total_gb = total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+                                    if total_gb > 32.5 {
+                                        egui::Frame::new()
+                                            .fill(Color32::from_rgb(10, 24, 30))
+                                            .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
+                                            .corner_radius(6)
+                                            .inner_margin(Margin::same(8))
+                                            .show(ui, |ui| {
+                                                ui.label(
+                                                    RichText::new(format!(
+                                                        "💡 Recommendation for this {:.0}GB card: Use exFAT. Windows format natively limits FAT32 to 32GB, and exFAT allows large games (>4GB like PS2/GameCube/Wii/PSP ISOs).",
+                                                        total_gb
+                                                    ))
+                                                    .size(10.0)
+                                                    .color(Color32::from_rgb(0, 229, 255)),
+                                                );
+                                            });
+                                    } else {
+                                        egui::Frame::new()
+                                            .fill(Color32::from_rgb(18, 16, 28))
+                                            .stroke(Stroke::new(1.0, Color32::from_rgb(139, 92, 246)))
+                                            .corner_radius(6)
+                                            .inner_margin(Margin::same(8))
+                                            .show(ui, |ui| {
+                                                ui.label(
+                                                    RichText::new(format!(
+                                                        "💡 Recommendation for this {:.0}GB card: FAT32 provides maximum compatibility for older handhelds (Miyoo, RG35XX, GarlicOS). If your device supports Android or PC, exFAT is also suitable.",
+                                                        total_gb
+                                                    ))
+                                                    .size(10.0)
+                                                    .color(Color32::from_rgb(190, 160, 255)),
+                                                );
+                                            });
+                                    }
+                                }
+
+                                ui.add_space(6.0);
+                                ui.horizontal(|ui| {
+                                    ui.label(
+                                        RichText::new("Volume Label:")
+                                            .size(11.0)
+                                            .color(Color32::from_gray(180)),
+                                    );
+                                    ui.text_edit_singleline(&mut self.volume_label);
+                                });
+
+                                ui.add_space(4.0);
+                                ui.checkbox(
+                                    &mut self.format_confirmed,
+                                    RichText::new(
+                                        "I understand formatting will erase all data on this target drive.",
+                                    )
+                                    .size(10.5)
+                                    .color(Color32::from_rgb(255, 180, 100)),
+                                );
                             }
                         }
                     });

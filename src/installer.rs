@@ -6,7 +6,7 @@ use std::sync::Arc;
 use walkdir::WalkDir;
 
 use crate::art_scraper::ArtScraper;
-use crate::drives::{format_drive, FormatFileSystem};
+use crate::drives::{format_drive, wipe_and_repartition_drive, FormatFileSystem};
 use crate::favorites::{load_favorites, FavoritesList};
 use crate::launcher_profiles::{LauncherProfile, ProfileId};
 use crate::platforms::{find_platform_by_id, PlatformInfo};
@@ -30,6 +30,7 @@ pub struct InstallConfig {
     pub drive_letter: String,
     pub destination_path: PathBuf,
     pub format_option: Option<FormatFileSystem>,
+    pub wipe_and_repartition: bool,
     pub volume_label: String,
     pub profile_id: ProfileId,
     pub platforms: Vec<PlatformInstallConfig>,
@@ -73,22 +74,41 @@ impl InstallerEngine {
             errors: Vec::new(),
         };
 
-        // 1. Format drive if requested
+        // 1. Format or clean repartition drive if requested
         if let Some(fs) = config.format_option {
-            let _ = tx.send(InstallerEvent::Phase(format!("Formatting SD Card ({:?})...", fs)));
-            let _ = tx.send(InstallerEvent::Log(format!(
-                "Formatting drive {} with {} filesystem...",
-                config.drive_letter,
-                fs.as_str()
-            )));
+            if config.wipe_and_repartition {
+                let _ = tx.send(InstallerEvent::Phase(format!("Wiping & Repartitioning SD Card (MBR / {:?})...", fs)));
+                let _ = tx.send(InstallerEvent::Log(format!(
+                    "Wiping hidden partitions and repartitioning drive {} with {} filesystem...",
+                    config.drive_letter,
+                    fs.as_str()
+                )));
 
-            match format_drive(&config.drive_letter, fs, &config.volume_label) {
-                Ok(msg) => {
-                    let _ = tx.send(InstallerEvent::Log(msg));
+                match wipe_and_repartition_drive(&config.drive_letter, fs, &config.volume_label) {
+                    Ok(msg) => {
+                        let _ = tx.send(InstallerEvent::Log(msg));
+                    }
+                    Err(err) => {
+                        let _ = tx.send(InstallerEvent::Failed(format!("Clean repartitioning failed: {}", err)));
+                        return;
+                    }
                 }
-                Err(err) => {
-                    let _ = tx.send(InstallerEvent::Failed(format!("Formatting failed: {}", err)));
-                    return;
+            } else {
+                let _ = tx.send(InstallerEvent::Phase(format!("Formatting SD Card ({:?})...", fs)));
+                let _ = tx.send(InstallerEvent::Log(format!(
+                    "Formatting drive {} with {} filesystem...",
+                    config.drive_letter,
+                    fs.as_str()
+                )));
+
+                match format_drive(&config.drive_letter, fs, &config.volume_label) {
+                    Ok(msg) => {
+                        let _ = tx.send(InstallerEvent::Log(msg));
+                    }
+                    Err(err) => {
+                        let _ = tx.send(InstallerEvent::Failed(format!("Formatting failed: {}", err)));
+                        return;
+                    }
                 }
             }
         }

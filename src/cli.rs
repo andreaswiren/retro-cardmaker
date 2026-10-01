@@ -44,6 +44,10 @@ pub enum Commands {
         #[arg(short, long, default_value = "RETRO")]
         label: String,
 
+        /// Wipe all hidden partitions and cleanly repartition SD card (MBR)
+        #[arg(long)]
+        wipe_and_repartition: bool,
+
         /// Confirm format without interactive prompt
         #[arg(short = 'y', long)]
         yes: bool,
@@ -78,6 +82,10 @@ pub enum Commands {
         /// Format SD card before installing
         #[arg(long)]
         format: Option<CliFileSystem>,
+
+        /// Wipe all hidden partitions and cleanly repartition SD card (MBR)
+        #[arg(long)]
+        wipe_and_repartition: bool,
 
         /// Comma-separated list of platform IDs (e.g. 'gba,snes,psx,nds' or 'all')
         #[arg(long, default_value = "all")]
@@ -141,22 +149,28 @@ pub fn run_cli_command(command: Commands) {
                 println!("No drives detected.");
             } else {
                 for (i, d) in drives.iter().enumerate() {
-                    let rem_tag = if d.is_removable {
-                        "[Removable SD/USB]"
-                    } else if d.is_system {
+                    let rem_tag = if d.is_system {
                         "[SYSTEM DRIVE - PROTECTED]"
+                    } else if d.is_removable {
+                        "[Removable SD/USB]"
                     } else {
                         "[Fixed Drive]"
                     };
+                    let hidden_str = if d.has_hidden_partitions {
+                        format!(" ⚠️ [Hidden Partitions Detected: Physical {}]", d.physical_gb_str())
+                    } else {
+                        String::new()
+                    };
                     println!(
-                        "  {}. {} (Label: '{}') - {} - Free: {} / {} {}",
+                        "  {}. {} (Label: '{}') - {} - Free: {} / {} {}{}",
                         i + 1,
                         d.letter,
                         d.label,
                         d.file_system,
                         d.free_gb_str(),
                         d.total_gb_str(),
-                        rem_tag
+                        rem_tag,
+                        hidden_str
                     );
                 }
             }
@@ -167,6 +181,7 @@ pub fn run_cli_command(command: Commands) {
             drive,
             fs,
             label,
+            wipe_and_repartition,
             yes,
         } => {
             let clean = drive.trim_end_matches('\\').trim_end_matches('/');
@@ -176,23 +191,36 @@ pub fn run_cli_command(command: Commands) {
             }
 
             if !yes {
+                let action_desc = if wipe_and_repartition {
+                    "WIPE ALL HIDDEN PARTITIONS & REPARTITION MBR"
+                } else {
+                    "FORMAT"
+                };
                 print!(
-                    "WARNING: ALL DATA ON {} WILL BE PERMANENTLY ERASED.\nAre you sure you want to format {} as {} (Label: '{}')? [y/N]: ",
-                    drive, drive, format!("{:?}", fs), label
+                    "WARNING: ALL DATA ON {} WILL BE PERMANENTLY ERASED.\nAction: {}\nAre you sure you want to proceed on {} as {} (Label: '{}')? [y/N]: ",
+                    drive, action_desc, drive, format!("{:?}", fs), label
                 );
                 io::stdout().flush().unwrap();
                 let mut input = String::new();
                 io::stdin().read_line(&mut input).unwrap();
                 if !input.trim().eq_ignore_ascii_case("y") {
-                    println!("Format cancelled.");
+                    println!("Operation cancelled.");
                     return;
                 }
             }
 
-            println!("Formatting {}...", drive);
-            match format_drive(&drive, fs.into(), &label) {
-                Ok(msg) => println!("Success: {}", msg),
-                Err(err) => eprintln!("Error: {}", err),
+            if wipe_and_repartition {
+                println!("Wiping hidden partitions and repartitioning {}...", drive);
+                match crate::drives::wipe_and_repartition_drive(&drive, fs.into(), &label) {
+                    Ok(msg) => println!("Success: {}", msg),
+                    Err(err) => eprintln!("Error: {}", err),
+                }
+            } else {
+                println!("Formatting {}...", drive);
+                match format_drive(&drive, fs.into(), &label) {
+                    Ok(msg) => println!("Success: {}", msg),
+                    Err(err) => eprintln!("Error: {}", err),
+                }
             }
         }
 
@@ -204,6 +232,7 @@ pub fn run_cli_command(command: Commands) {
             favorites_only,
             download_art,
             format,
+            wipe_and_repartition,
             platforms,
         } => {
             run_headless_install(
@@ -214,6 +243,7 @@ pub fn run_cli_command(command: Commands) {
                 favorites_only,
                 download_art,
                 format.map(Into::into),
+                wipe_and_repartition,
                 &platforms,
             );
         }
@@ -232,6 +262,7 @@ fn run_headless_install(
     favorites_only: bool,
     download_art: bool,
     format_opt: Option<FormatFileSystem>,
+    wipe_and_repartition: bool,
     platforms_filter: &str,
 ) {
     let clean_drive = drive_letter.trim_end_matches('\\').trim_end_matches('/');
@@ -297,6 +328,7 @@ fn run_headless_install(
         drive_letter: clean_drive.to_string(),
         destination_path: target_base,
         format_option: format_opt,
+        wipe_and_repartition,
         volume_label: "RETRO".to_string(),
         profile_id,
         platforms: platform_configs,
@@ -381,19 +413,37 @@ pub fn run_interactive_wizard() {
     }
 
     // 2. Format Option
-    println!("\nFormat SD Card?");
-    println!("Guidance: FAT32 is best for older devices or <=32GB cards. exFAT is best for modern devices & 64GB+.");
-    println!("  1) Skip format (keep existing files)");
-    println!("  2) Format as exFAT (Recommended for modern handhelds)");
-    println!("  3) Format as FAT32 (Best for Miyoo Mini, RG35XX GarlicOS)");
-    print!("Choose [1-3] (default 1): ");
-    io::stdout().flush().unwrap();
-    input.clear();
-    io::stdin().read_line(&mut input).unwrap();
-    let format_opt = match input.trim() {
-        "2" => Some(FormatFileSystem::ExFat),
-        "3" => Some(FormatFileSystem::Fat32),
-        _ => None,
+    let (format_opt, wipe_and_repartition) = if !selected_drive.is_removable {
+        println!("\nFormatting is disabled: drive {} is not a removable USB or SD card.", selected_drive.letter);
+        (None, false)
+    } else {
+        println!("\nFormat SD Card?");
+        println!("Guidance: FAT32 is best for older devices or <=32GB cards. exFAT is best for modern devices & 64GB+.");
+        println!("  1) Skip format (keep existing files)");
+        println!("  2) Format as exFAT (Recommended for modern handhelds & 64GB+)");
+        println!("  3) Format as FAT32 (Best for Miyoo Mini, RG35XX GarlicOS & <=32GB)");
+        print!("Choose [1-3] (default 1): ");
+        io::stdout().flush().unwrap();
+        input.clear();
+        io::stdin().read_line(&mut input).unwrap();
+        let f_opt = match input.trim() {
+            "2" => Some(FormatFileSystem::ExFat),
+            "3" => Some(FormatFileSystem::Fat32),
+            _ => None,
+        };
+
+        let mut do_wipe = false;
+        if f_opt.is_some() {
+            if selected_drive.has_hidden_partitions {
+                println!("\n⚠️ WARNING: Hidden/foreign partitions detected on this card ({} partition vs {} physical)!", selected_drive.total_gb_str(), selected_drive.physical_gb_str());
+            }
+            print!("\nPerform Full Repartition & Wipe (remove hidden/Linux partitions and restore full capacity)? [y/N]: ");
+            io::stdout().flush().unwrap();
+            input.clear();
+            io::stdin().read_line(&mut input).unwrap();
+            do_wipe = input.trim().eq_ignore_ascii_case("y");
+        }
+        (f_opt, do_wipe)
     };
 
     // 3. Select Launcher Profile
@@ -446,6 +496,7 @@ pub fn run_interactive_wizard() {
         favorites_only,
         download_art,
         format_opt,
+        wipe_and_repartition,
         "all",
     );
 }

@@ -16,7 +16,16 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Nintendo",
         libretro_name: "Nintendo_-_Nintendo_Entertainment_System",
         extensions: &[".nes", ".zip", ".7z", ".unf", ".fds"],
-        folder_aliases: &["nes", "NES", "fc", "FC", "famicom", "Nintendo - Nintendo Entertainment System"],
+        folder_aliases: &[
+            "nes",
+            "NES",
+            "fc",
+            "FC",
+            "famicom",
+            "Nintendo - Nintendo Entertainment System",
+            "nintendo entertainment system",
+            "Nintendo",
+        ],
         default_favorites: &[
             "Super Mario Bros. 3",
             "Super Mario Bros.",
@@ -41,7 +50,16 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Nintendo",
         libretro_name: "Nintendo_-_Super_Nintendo_Entertainment_System",
         extensions: &[".smc", ".sfc", ".zip", ".7z", ".fig"],
-        folder_aliases: &["snes", "SNES", "sfc", "SFC", "superfamicom", "Nintendo - Super Nintendo Entertainment System"],
+        folder_aliases: &[
+            "snes",
+            "SNES",
+            "sfc",
+            "SFC",
+            "superfamicom",
+            "Nintendo - Super Nintendo Entertainment System",
+            "super nintendo",
+            "super nintendo entertainment system",
+        ],
         default_favorites: &[
             "Super Mario World",
             "Super Mario World 2 - Yoshi's Island",
@@ -66,7 +84,13 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Nintendo",
         libretro_name: "Nintendo_-_Nintendo_64",
         extensions: &[".n64", ".z64", ".v64", ".zip", ".7z"],
-        folder_aliases: &["n64", "N64", "Nintendo 64", "Nintendo - Nintendo 64"],
+        folder_aliases: &[
+            "n64",
+            "N64",
+            "Nintendo 64",
+            "nintendo 64",
+            "Nintendo - Nintendo 64",
+        ],
         default_favorites: &[
             "Super Mario 64",
             "Legend of Zelda, The - Ocarina of Time",
@@ -88,7 +112,14 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Nintendo",
         libretro_name: "Nintendo_-_Game_Boy",
         extensions: &[".gb", ".zip", ".7z"],
-        folder_aliases: &["gb", "GB", "gameboy", "Game Boy", "Nintendo - Game Boy"],
+        folder_aliases: &[
+            "gb",
+            "GB",
+            "gameboy",
+            "Game Boy",
+            "game boy",
+            "Nintendo - Game Boy",
+        ],
         default_favorites: &[
             "Pokemon - Red Version",
             "Pokemon - Blue Version",
@@ -109,7 +140,17 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Nintendo",
         libretro_name: "Nintendo_-_Game_Boy_Color",
         extensions: &[".gbc", ".zip", ".7z"],
-        folder_aliases: &["gbc", "GBC", "gameboycolor", "Game Boy Color", "Nintendo - Game Boy Color"],
+        folder_aliases: &[
+            "gbc",
+            "GBC",
+            "gameboycolor",
+            "gameboy color",
+            "game boy color",
+            "Game Boy Color",
+            "Nintendo - Game Boy Color",
+            "gb color",
+            "gb_color",
+        ],
         default_favorites: &[
             "Pokemon - Crystal Version",
             "Pokemon - Gold Version",
@@ -130,7 +171,17 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Nintendo",
         libretro_name: "Nintendo_-_Game_Boy_Advance",
         extensions: &[".gba", ".zip", ".7z"],
-        folder_aliases: &["gba", "GBA", "gameboyadvance", "Game Boy Advance", "Nintendo - Game Boy Advance"],
+        folder_aliases: &[
+            "gba",
+            "GBA",
+            "gameboyadvance",
+            "gameboy advance",
+            "game boy advance",
+            "Game Boy Advance",
+            "Nintendo - Game Boy Advance",
+            "gb advance",
+            "gb_advance",
+        ],
         default_favorites: &[
             "Pokemon - Emerald Version",
             "Pokemon - FireRed Version",
@@ -155,7 +206,15 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Nintendo",
         libretro_name: "Nintendo_-_Nintendo_DS",
         extensions: &[".nds", ".zip", ".7z"],
-        folder_aliases: &["nds", "NDS", "ds", "DS", "Nintendo DS", "Nintendo - Nintendo DS"],
+        folder_aliases: &[
+            "nds",
+            "NDS",
+            "ds",
+            "DS",
+            "Nintendo DS",
+            "nintendo ds",
+            "Nintendo - Nintendo DS",
+        ],
         default_favorites: &[
             "Pokemon - HeartGold Version",
             "Pokemon - Platinum Version",
@@ -179,7 +238,17 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Sega",
         libretro_name: "Sega_-_Master_System_-_Mark_III",
         extensions: &[".sms", ".zip", ".7z", ".bin"],
-        folder_aliases: &["sms", "SMS", "mastersystem", "Master System", "Sega - Master System - Mark III"],
+        folder_aliases: &[
+            "sms",
+            "SMS",
+            "mastersystem",
+            "master system",
+            "Master System",
+            "sega master system",
+            "sega_master_system",
+            "Sega Master System",
+            "Sega - Master System - Mark III",
+        ],
         default_favorites: &[
             "Alex Kidd in Miracle World",
             "Phantasy Star",
@@ -199,7 +268,19 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Sega",
         libretro_name: "Sega_-_Mega_Drive_-_Genesis",
         extensions: &[".md", ".gen", ".smd", ".bin", ".zip", ".7z"],
-        folder_aliases: &["megadrive", "genesis", "MD", "GENESIS", "Sega Genesis", "Sega - Mega Drive - Genesis"],
+        folder_aliases: &[
+            "megadrive",
+            "genesis",
+            "MD",
+            "GENESIS",
+            "sega mega drive",
+            "sega megadrive",
+            "sega_mega_drive",
+            "sega genesis",
+            "Sega Mega Drive",
+            "Sega Genesis",
+            "Sega - Mega Drive - Genesis",
+        ],
         default_favorites: &[
             "Sonic The Hedgehog 2",
             "Sonic 3 & Knuckles",
@@ -217,12 +298,47 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         ],
     },
     PlatformInfo {
+        id: "gamegear",
+        name: "Sega Game Gear",
+        manufacturer: "Sega",
+        libretro_name: "Sega_-_Game_Gear",
+        extensions: &[".gg", ".zip", ".7z", ".bin"],
+        folder_aliases: &[
+            "gamegear",
+            "sega game gear",
+            "sega_game_gear",
+            "Game Gear",
+            "game gear",
+            "gg",
+            "GG",
+            "Sega - Game Gear",
+        ],
+        default_favorites: &[
+            "Sonic The Hedgehog",
+            "Sonic Chaos",
+            "Shinobi",
+            "Defenders of Oasis",
+            "Columns",
+            "Castle of Illusion",
+            "Tails Adventure",
+        ],
+    },
+    PlatformInfo {
         id: "saturn",
         name: "Sega Saturn",
         manufacturer: "Sega",
         libretro_name: "Sega_-_Saturn",
         extensions: &[".chd", ".iso", ".cue", ".bin", ".zip"],
-        folder_aliases: &["saturn", "ss", "SATURN", "SS", "Sega Saturn", "Sega - Saturn"],
+        folder_aliases: &[
+            "saturn",
+            "ss",
+            "SATURN",
+            "SS",
+            "sega saturn",
+            "sega_saturn",
+            "Sega Saturn",
+            "Sega - Saturn",
+        ],
         default_favorites: &[
             "Nights Into Dreams...",
             "Panzer Dragoon Saga",
@@ -242,7 +358,15 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Sega",
         libretro_name: "Sega_-_Dreamcast",
         extensions: &[".chd", ".gdi", ".cdi", ".iso", ".zip"],
-        folder_aliases: &["dreamcast", "dc", "DC", "DREAMCAST", "Sega Dreamcast", "Sega - Dreamcast"],
+        folder_aliases: &[
+            "dreamcast",
+            "dc",
+            "DC",
+            "DREAMCAST",
+            "sega dreamcast",
+            "Sega Dreamcast",
+            "Sega - Dreamcast",
+        ],
         default_favorites: &[
             "Crazy Taxi",
             "Sonic Adventure 2",
@@ -263,7 +387,18 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Sony",
         libretro_name: "Sony_-_PlayStation",
         extensions: &[".chd", ".cue", ".bin", ".iso", ".pbp", ".zip"],
-        folder_aliases: &["psx", "ps1", "PSX", "PS1", "ps", "PS", "PlayStation", "Sony - PlayStation"],
+        folder_aliases: &[
+            "psx",
+            "ps1",
+            "PSX",
+            "PS1",
+            "ps",
+            "PS",
+            "PlayStation",
+            "playstation",
+            "Sony - PlayStation",
+            "sony playstation",
+        ],
         default_favorites: &[
             "Castlevania - Symphony of the Night",
             "Final Fantasy VII",
@@ -287,7 +422,14 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Sony",
         libretro_name: "Sony_-_PlayStation_2",
         extensions: &[".chd", ".iso", ".cso", ".bin", ".gz"],
-        folder_aliases: &["ps2", "PS2", "PlayStation 2", "Sony - PlayStation 2"],
+        folder_aliases: &[
+            "ps2",
+            "PS2",
+            "PlayStation 2",
+            "playstation 2",
+            "Sony - PlayStation 2",
+            "sony playstation 2",
+        ],
         default_favorites: &[
             "Grand Theft Auto - San Andreas",
             "God of War II",
@@ -311,7 +453,14 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         manufacturer: "Sony",
         libretro_name: "Sony_-_PlayStation_Portable",
         extensions: &[".cso", ".iso", ".pbp", ".chd"],
-        folder_aliases: &["psp", "PSP", "PlayStation Portable", "Sony - PlayStation Portable"],
+        folder_aliases: &[
+            "psp",
+            "PSP",
+            "PlayStation Portable",
+            "playstation portable",
+            "Sony - PlayStation Portable",
+            "sony playstation portable",
+        ],
         default_favorites: &[
             "God of War - Ghost of Sparta",
             "God of War - Chains of Olympus",
@@ -327,17 +476,75 @@ pub static PLATFORMS: &[PlatformInfo] = &[
             "Tekken - Dark Resurrection",
         ],
     },
+    PlatformInfo {
+        id: "gamecube",
+        name: "Nintendo GameCube",
+        manufacturer: "Nintendo",
+        libretro_name: "Nintendo_-_GameCube",
+        extensions: &[".iso", ".cso", ".gcm", ".rvz", ".zip"],
+        folder_aliases: &[
+            "gamecube",
+            "gc",
+            "GC",
+            "Nintendo GameCube",
+            "nintendo gamecube",
+            "Nintendo - GameCube",
+        ],
+        default_favorites: &[
+            "Super Smash Bros. Melee",
+            "Legend of Zelda, The - The Wind Waker",
+            "Super Mario Sunshine",
+            "Metroid Prime",
+            "Mario Kart - Double Dash!!",
+            "Resident Evil 4",
+            "Luigi's Mansion",
+        ],
+    },
+    PlatformInfo {
+        id: "wii",
+        name: "Nintendo Wii",
+        manufacturer: "Nintendo",
+        libretro_name: "Nintendo_-_Wii",
+        extensions: &[".wbfs", ".iso", ".rvz", ".cso"],
+        folder_aliases: &[
+            "wii",
+            "Wii",
+            "Nintendo Wii",
+            "nintendo wii",
+            "Nintendo - Wii",
+        ],
+        default_favorites: &[
+            "Super Mario Galaxy",
+            "Super Mario Galaxy 2",
+            "Legend of Zelda, The - Twilight Princess",
+            "Xenoblade Chronicles",
+            "Super Smash Bros. Brawl",
+            "Mario Kart Wii",
+            "Donkey Kong Country Returns",
+        ],
+    },
 ];
 
 pub fn find_platform_by_id(id: &str) -> Option<&'static PlatformInfo> {
     PLATFORMS.iter().find(|p| p.id.eq_ignore_ascii_case(id))
 }
 
-#[allow(dead_code)]
 pub fn find_platform_by_dir_name(dir_name: &str) -> Option<&'static PlatformInfo> {
+    let clean = dir_name.trim();
+    let normalized = clean.to_lowercase().replace(['_', '-'], " ");
+    let compact = normalized.replace(' ', "");
+
     for platform in PLATFORMS {
         for alias in platform.folder_aliases {
-            if alias.eq_ignore_ascii_case(dir_name) {
+            if alias.eq_ignore_ascii_case(clean) {
+                return Some(platform);
+            }
+            let alias_norm = alias.to_lowercase().replace(['_', '-'], " ");
+            if alias_norm == normalized {
+                return Some(platform);
+            }
+            let alias_compact = alias_norm.replace(' ', "");
+            if !alias_compact.is_empty() && alias_compact == compact {
                 return Some(platform);
             }
         }
