@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-10-02
+
+### Added
+- **Headless Visual Verification Pipeline**:
+  - Added `--screenshot <path>`, `--screenshot-tab <tab>`, and `--screenshot-modal` CLI flags to capture exact pixel-perfect UI states headlessly for automated verification.
+- **Interactive Styled Button Widgets**:
+  - Replaced unstyled label buttons with authentic interactive `egui::Button` widgets featuring elevated backgrounds, borders, hover transitions, and rounded corners across the entire application.
+
+### Fixed
+- **Curated List Horizontal Blowout**:
+  - Fixed infinite width layout blowout caused by long keyword lists and large ROM selections.
+  - Converted keyword pattern chips into auto-wrapping pill buttons with multi-row layout.
+- **Live Preview Metadata Text Wrapping**:
+  - Fixed character-by-character vertical text collapse in the boxart live preview metadata panel.
+- **Unicode Font Rendering**:
+  - Replaced unsupported glyphs (`\u{2715}`, `\u{2355}`) with standard Latin-1 symbols (`×`, clean labels) to eliminate missing square glyph boxes (`\u{25A1}`).
+- **Modal Dialog Sizing & Footer Visibility**:
+  - Refined modal dialog dimensions (`940x640px`) and positioning (`130, 40`) to ensure 100% visibility of the lime green `💾 Save favorites.json` button, `Sync Boxart` neon toggle, and `Close` button.
+
 ## [0.2.2] - 2026-10-02
 
 ### Added

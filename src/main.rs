@@ -27,9 +27,12 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
+    let screenshot_path = args.screenshot.clone();
+    let screenshot_tab = args.screenshot_tab.clone();
+    let screenshot_modal = args.screenshot_modal;
     eframe::run_native(
         "Retro CardMaker",
         options,
-        Box::new(|cc| Ok(Box::new(RetroCardMakerApp::new(cc)))),
+        Box::new(move |cc| Ok(Box::new(RetroCardMakerApp::new(cc, screenshot_path, screenshot_tab, screenshot_modal)))),
     )
 }

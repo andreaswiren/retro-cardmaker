@@ -23,6 +23,18 @@ pub struct Cli {
     /// Run in terminal interactive wizard mode instead of GUI
     #[arg(short, long)]
     pub cli: bool,
+
+    /// Capture screenshot of GUI to file and exit
+    #[arg(long)]
+    pub screenshot: Option<String>,
+
+    /// Tab to select when taking screenshot (e.g. "dashboard", "favorites", "consoles", "settings")
+    #[arg(long)]
+    pub screenshot_tab: Option<String>,
+
+    /// Open favorites modal when taking screenshot
+    #[arg(long)]
+    pub screenshot_modal: bool,
 }
 
 #[derive(Subcommand, Debug)]

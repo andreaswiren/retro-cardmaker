@@ -5,3 +5,5 @@
 .vscode/
 Thumbs.db
 Desktop.ini
+*.ps1
+/scratch
