@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced unsupported glyphs (`\u{2715}`, `\u{2355}`) with standard Latin-1 symbols (`×`, clean labels) to eliminate missing square glyph boxes (`\u{25A1}`).
 - **Modal Dialog Sizing & Footer Visibility**:
   - Refined modal dialog dimensions (`940x640px`) and positioning (`130, 40`) to ensure 100% visibility of the lime green `💾 Save favorites.json` button, `Sync Boxart` neon toggle, and `Close` button.
+- **Windows Subsystem Fix (No Black Console Window)**:
+  - Added `#![cfg_attr(windows, windows_subsystem = "windows")]` to compile as a native Windows GUI application (`IMAGE_SUBSYSTEM_WINDOWS_GUI`), completely eliminating the unwanted black command prompt window when launching `retro-cardmaker.exe`.
+  - Added dynamic console attachment via `AttachConsole` so CLI commands (`--help`, `--cli`) still print output to the terminal when explicitly invoked from the console.
 
 ## [0.2.2] - 2026-10-02
 
