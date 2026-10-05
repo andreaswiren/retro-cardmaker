@@ -5,6 +5,8 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use clap::{Parser, Subcommand, ValueEnum};
 
+use crate::art_scraper::ArtType;
+use crate::dedup::RegionPreference;
 use crate::drives::{format_drive, get_available_drives, FormatFileSystem};
 use crate::favorites::load_favorites;
 use crate::installer::{
@@ -38,6 +40,10 @@ pub struct Cli {
     /// Open favorites modal when taking screenshot
     #[arg(long)]
     pub screenshot_modal: bool,
+
+    /// Step (1-5) to select when taking screenshot of the wizard
+    #[arg(long)]
+    pub screenshot_step: Option<usize>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -125,6 +131,18 @@ pub enum Commands {
         /// Only download/sync boxart without copying ROMs
         #[arg(long)]
         art_only: bool,
+
+        /// Comma-separated artwork types to download: 'boxart,screenshots,titles'
+        #[arg(long, default_value = "boxart")]
+        art_types: String,
+
+        /// Region preference for 1G1R deduplication: 'usa', 'europe', 'japan', 'world', or 'none'
+        #[arg(long, default_value = "usa")]
+        region_pref: String,
+
+        /// Exclude betas and prototypes when deduplicating
+        #[arg(long, default_value_t = true)]
+        exclude_betas: bool,
 
         /// Only copy ROMs without downloading boxart
         #[arg(long)]
@@ -279,6 +297,9 @@ pub fn run_cli_command(command: Commands) {
             art_threads,
             art_only,
             roms_only,
+            art_types,
+            region_pref,
+            exclude_betas,
         } => {
             run_headless_install(
                 &drive,
@@ -296,6 +317,9 @@ pub fn run_cli_command(command: Commands) {
                 art_threads,
                 art_only,
                 roms_only,
+                &art_types,
+                &region_pref,
+                exclude_betas,
             );
         }
 
@@ -321,6 +345,9 @@ fn run_headless_install(
     art_threads: usize,
     art_only: bool,
     roms_only: bool,
+    art_types_str: &str,
+    region_pref_str: &str,
+    exclude_betas: bool,
 ) {
     let clean_drive = drive_letter.trim_end_matches('\\').trim_end_matches('/');
     let target_base = if dest_subfolder.trim().is_empty() {
@@ -343,6 +370,30 @@ fn run_headless_install(
         InstallerExecutionMode::FullInstall
     };
 
+    let parsed_art_types: Vec<ArtType> = art_types_str
+        .split(',')
+        .filter_map(|s| match s.trim().to_lowercase().as_str() {
+            "boxart" | "boxarts" | "covers" => Some(ArtType::Boxart),
+            "screenshots" | "screenshot" | "snaps" | "snap" => Some(ArtType::Screenshot),
+            "titles" | "title" | "titlescreen" => Some(ArtType::TitleScreen),
+            _ => None,
+        })
+        .collect();
+
+    let effective_art_types = if parsed_art_types.is_empty() {
+        vec![ArtType::Boxart]
+    } else {
+        parsed_art_types
+    };
+
+    let reg_pref = match region_pref_str.trim().to_lowercase().as_str() {
+        "europe" | "pal" | "eu" => RegionPreference::EuropeFirst,
+        "japan" | "jp" => RegionPreference::JapanFirst,
+        "world" => RegionPreference::WorldFirst,
+        "none" => RegionPreference::None,
+        _ => RegionPreference::UsaFirst,
+    };
+
     println!("\n=== Starting Retro CardMaker QuickInstaller ===");
     println!("Target Drive: {}", clean_drive);
     println!("Destination: {}", target_base.display());
@@ -350,7 +401,8 @@ fn run_headless_install(
     println!("Profile: {:?}", profile_id);
     println!("Execution Mode: {:?}", exec_mode);
     println!("Favorites Only: {}", favorites_only);
-    println!("Download Boxart: {} (Location: {:?}, Subfolder: '{}')", download_art && !roms_only, art_mode, art_subfolder_str);
+    println!("Region Preference (1G1R): {:?} (Exclude Betas: {})", reg_pref, exclude_betas);
+    println!("Download Media: {} (Location: {:?}, Types: {:?}, Subfolder: '{}')", download_art && !roms_only, art_mode, effective_art_types, art_subfolder_str);
     println!("Workers: Copy = {}, Art = {}", copy_threads, art_threads);
     if let Some(f) = format_opt {
         println!("Will Format as: {}", f.as_str());
@@ -406,8 +458,11 @@ fn run_headless_install(
         profile_id,
         platforms: platform_configs,
         download_art: download_art && !roms_only,
+        art_types: effective_art_types,
         art_location_mode: art_mode,
         art_subfolder_name: art_subfolder_str.to_string(),
+        region_preference: reg_pref,
+        exclude_betas,
         copy_threads,
         art_threads,
         copy_roms_first: true,
@@ -583,5 +638,8 @@ pub fn run_interactive_wizard() {
         6,
         false,
         false,
+        "boxart",
+        "usa",
+        true,
     );
 }

@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
+use crate::art_scraper::ArtType;
 use crate::platforms::PlatformInfo;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,10 +99,7 @@ impl LauncherProfile {
     /// Returns the target ROM directory relative to the chosen base folder (e.g. "E:/" or "E:/roms")
     pub fn get_platform_folder(&self, platform: &PlatformInfo) -> String {
         match self.id {
-            ProfileId::AnbernicRgDsLauncher
-            | ProfileId::AnbernicOlderGarlicOs
-            | ProfileId::MiyooMiniOnionOs => {
-                // Short uppercase codes used by Anbernic / Miyoo
+            ProfileId::AnbernicRgDsLauncher => {
                 match platform.id {
                     "nes" => "FC".to_string(),
                     "snes" => "SFC".to_string(),
@@ -112,6 +110,31 @@ impl LauncherProfile {
                     "nds" => "NDS".to_string(),
                     "sms" => "SMS".to_string(),
                     "megadrive" => "MD".to_string(),
+                    "gamegear" => "GG".to_string(),
+                    "saturn" => "SATURN".to_string(),
+                    "dreamcast" => "DREAMCAST".to_string(),
+                    "psx" => "PS".to_string(),
+                    "ps2" => "PS2".to_string(),
+                    "psp" => "PSP".to_string(),
+                    "pce" => "PCE".to_string(),
+                    "neogeo" => "NEOGEO".to_string(),
+                    other => other.to_uppercase(),
+                }
+            }
+            ProfileId::AnbernicOlderGarlicOs
+            | ProfileId::MiyooMiniOnionOs => {
+                // Short uppercase codes used by older GarlicOS / Miyoo
+                match platform.id {
+                    "nes" => "FC".to_string(),
+                    "snes" => "SFC".to_string(),
+                    "n64" => "N64".to_string(),
+                    "gb" => "GB".to_string(),
+                    "gbc" => "GBC".to_string(),
+                    "gba" => "GBA".to_string(),
+                    "nds" => "NDS".to_string(),
+                    "sms" => "SMS".to_string(),
+                    "megadrive" => "MD".to_string(),
+                    "gamegear" => "GG".to_string(),
                     "saturn" => "SS".to_string(),
                     "dreamcast" => "DC".to_string(),
                     "psx" => "PS".to_string(),
@@ -139,70 +162,99 @@ impl LauncherProfile {
         base_dest.join(folder).join(rom_filename)
     }
 
-    /// Calculates the full destination path for the corresponding artwork image
-    pub fn get_art_destination(
+    /// Calculates the full destination path for the corresponding artwork image with specific ArtType
+    pub fn get_typed_art_destination(
         &self,
         base_dest: &Path,
         platform: &PlatformInfo,
         rom_stem: &str,
+        art_type: ArtType,
     ) -> PathBuf {
         let p_folder = self.get_platform_folder(platform);
         let filename = format!("{}.png", rom_stem);
 
         match self.id {
             ProfileId::EmulationStationEsDe => {
-                // ES-DE: <base_dest>/downloaded_media/<platform_id>/covers/<rom_stem>.png
+                let sub = match art_type {
+                    ArtType::Boxart => "covers",
+                    ArtType::Screenshot => "screenshots",
+                    ArtType::TitleScreen => "titles",
+                };
                 base_dest
                     .join("downloaded_media")
                     .join(platform.id)
-                    .join("covers")
+                    .join(sub)
                     .join(&filename)
             }
             ProfileId::RetroArch => {
-                // RetroArch: <base_dest>/thumbnails/<libretro_name>/Named_Boxarts/<rom_stem>.png
                 base_dest
                     .join("thumbnails")
                     .join(platform.libretro_name)
-                    .join("Named_Boxarts")
+                    .join(art_type.libretro_folder())
                     .join(&filename)
             }
             ProfileId::AnbernicRgDsLauncher
             | ProfileId::AnbernicOlderGarlicOs
             | ProfileId::MiyooMiniOnionOs => {
-                // Anbernic/Garlic/Onion: <base_dest>/<CODE>/Imgs/<rom_stem>.png
+                let sub = match art_type {
+                    ArtType::Boxart => "Imgs",
+                    ArtType::Screenshot => "snaps",
+                    ArtType::TitleScreen => "titles",
+                };
                 base_dest
                     .join(&p_folder)
-                    .join("Imgs")
+                    .join(sub)
                     .join(&filename)
             }
             ProfileId::Daijisho => {
-                // Daijisho: <base_dest>/<platform_id>/thumbnails/<rom_stem>.png
+                let sub = match art_type {
+                    ArtType::Boxart => "thumbnails",
+                    ArtType::Screenshot => "screenshots",
+                    ArtType::TitleScreen => "titles",
+                };
                 base_dest
                     .join(&p_folder)
-                    .join("thumbnails")
+                    .join(sub)
                     .join(&filename)
             }
             ProfileId::Pegasus => {
-                // Pegasus: <base_dest>/<platform_id>/media/<rom_stem>.png
+                let sub = match art_type {
+                    ArtType::Boxart => "media",
+                    ArtType::Screenshot => "screenshots",
+                    ArtType::TitleScreen => "titles",
+                };
                 base_dest
                     .join(&p_folder)
-                    .join("media")
+                    .join(sub)
                     .join(&filename)
             }
             ProfileId::BatoceraArkOs => {
-                // Batocera/ArkOS: <base_dest>/<platform_id>/images/<rom_stem>-image.png
-                let img_name = format!("{}-image.png", rom_stem);
+                let suffix = match art_type {
+                    ArtType::Boxart => "-image.png",
+                    ArtType::Screenshot => "-snap.png",
+                    ArtType::TitleScreen => "-title.png",
+                };
                 base_dest
                     .join(&p_folder)
                     .join("images")
-                    .join(&img_name)
+                    .join(format!("{}{}", rom_stem, suffix))
             }
             ProfileId::Custom => {
-                // Generic: beside ROM
                 base_dest
                     .join(&p_folder)
+                    .join(art_type.default_subfolder())
                     .join(&filename)
             }
         }
+    }
+
+    /// Calculates the full destination path for the corresponding artwork image (defaults to Boxart)
+    pub fn get_art_destination(
+        &self,
+        base_dest: &Path,
+        platform: &PlatformInfo,
+        rom_stem: &str,
+    ) -> PathBuf {
+        self.get_typed_art_destination(base_dest, platform, rom_stem, ArtType::Boxart)
     }
 }

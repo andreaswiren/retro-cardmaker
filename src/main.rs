@@ -91,10 +91,11 @@ fn main() -> eframe::Result<()> {
     let screenshot_path = args.screenshot.clone();
     let screenshot_tab = args.screenshot_tab.clone();
     let screenshot_modal = args.screenshot_modal;
+    let screenshot_step = args.screenshot_step;
     let res = eframe::run_native(
         "Retro CardMaker",
         options,
-        Box::new(move |cc| Ok(Box::new(RetroCardMakerApp::new(cc, screenshot_path, screenshot_tab, screenshot_modal)))),
+        Box::new(move |cc| Ok(Box::new(RetroCardMakerApp::new(cc, screenshot_path, screenshot_tab, screenshot_modal, screenshot_step)))),
     );
     if let Err(ref e) = res {
         let _ = std::fs::write("crash.txt", format!("run_native error: {:?}", e));

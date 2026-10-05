@@ -3189,7 +3189,7 @@ dependencies = [
 
 [[package]]
 name = "retro-cardmaker"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "clap",
  "eframe",

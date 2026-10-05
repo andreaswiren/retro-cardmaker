@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use walkdir::WalkDir;
 
-use crate::art_scraper::ArtScraper;
+use crate::art_scraper::{ArtScraper, ArtType};
+use crate::dedup::{filter_roms_1g1r, RegionPreference};
 use crate::drives::{format_drive, wipe_and_repartition_drive, FormatFileSystem};
 use crate::favorites::{load_favorites, FavoritesList};
 use crate::launcher_profiles::{LauncherProfile, ProfileId};
@@ -81,8 +82,11 @@ pub struct InstallConfig {
     pub profile_id: ProfileId,
     pub platforms: Vec<PlatformInstallConfig>,
     pub download_art: bool,
+    pub art_types: Vec<ArtType>,
     pub art_location_mode: ArtLocationMode,
     pub art_subfolder_name: String,
+    pub region_preference: RegionPreference,
+    pub exclude_betas: bool,
     pub copy_threads: usize,
     pub art_threads: usize,
     pub copy_roms_first: bool,
@@ -94,6 +98,7 @@ pub struct InstallSummary {
     pub total_roms_copied: usize,
     pub total_art_downloaded: usize,
     pub total_bytes_copied: u64,
+    pub total_duplicates_filtered: usize,
     pub execution_mode: InstallerExecutionMode,
     pub errors: Vec<String>,
 }
@@ -125,6 +130,7 @@ struct ArtTask {
     platform: PlatformInfo,
     filename: String,
     stem: String,
+    art_type: ArtType,
     source_dir: PathBuf,
     dest_art_path: Option<PathBuf>,
 }
@@ -142,6 +148,7 @@ impl InstallerEngine {
             total_roms_copied: 0,
             total_art_downloaded: 0,
             total_bytes_copied: 0,
+            total_duplicates_filtered: 0,
             execution_mode: config.execution_mode,
             errors: Vec::new(),
         };
@@ -207,9 +214,15 @@ impl InstallerEngine {
         let profile = LauncherProfile::get_by_id(config.profile_id);
 
         // 3. Scan ROM directories and build task queues
-        let _ = tx.send(InstallerEvent::Phase("Scanning ROM directories...".to_string()));
+        let _ = tx.send(InstallerEvent::Phase("Scanning ROM directories & deduplicating...".to_string()));
         let mut copy_tasks: Vec<CopyTask> = Vec::new();
         let mut art_tasks: Vec<ArtTask> = Vec::new();
+
+        let effective_art_types = if config.art_types.is_empty() {
+            vec![ArtType::Boxart]
+        } else {
+            config.art_types.clone()
+        };
 
         for p_cfg in &config.platforms {
             if cancel_flag.load(Ordering::Relaxed) {
@@ -268,7 +281,11 @@ impl InstallerEngine {
             // Filter for primary game entries
             let raw_filenames: Vec<String> = found_files.iter().map(|(_, name)| name.clone()).collect();
             let primary_filenames = filter_primary_rom_files(platform.id, &raw_filenames);
-            let primary_set: std::collections::HashSet<_> = primary_filenames.into_iter().collect();
+
+            // Apply 1G1R deduplication and region preference
+            let dedup_result = filter_roms_1g1r(&primary_filenames, config.region_preference, config.exclude_betas);
+            summary.total_duplicates_filtered += dedup_result.duplicates_filtered;
+            let primary_set: std::collections::HashSet<_> = dedup_result.kept_files.into_iter().collect();
 
             let mut platform_found = 0;
             for (path, filename) in found_files {
@@ -322,7 +339,7 @@ impl InstallerEngine {
                     }
                 }
 
-                // 3b. Prepare artwork task
+                // 3b. Prepare artwork tasks for each requested ArtType
                 if config.download_art && config.execution_mode != InstallerExecutionMode::RomsOnly {
                     let stem = Path::new(&filename)
                         .file_stem()
@@ -330,25 +347,29 @@ impl InstallerEngine {
                         .unwrap_or(&filename)
                         .to_string();
 
-                    let dest_art_path = Some(profile.get_art_destination(
-                        &config.destination_path,
-                        &platform,
-                        &stem,
-                    ));
+                    for &art_type in &effective_art_types {
+                        let dest_art_path = Some(profile.get_typed_art_destination(
+                            &config.destination_path,
+                            &platform,
+                            &stem,
+                            art_type,
+                        ));
 
-                    art_tasks.push(ArtTask {
-                        platform: platform.clone(),
-                        filename: filename.clone(),
-                        stem,
-                        source_dir: p_cfg.source_dir.clone(),
-                        dest_art_path,
-                    });
+                        art_tasks.push(ArtTask {
+                            platform: platform.clone(),
+                            filename: filename.clone(),
+                            stem: stem.clone(),
+                            art_type,
+                            source_dir: p_cfg.source_dir.clone(),
+                            dest_art_path,
+                        });
+                    }
                 }
             }
 
             let _ = tx.send(InstallerEvent::Log(format!(
-                "Platform [{}]: discovered {} primary games (Mode: {:?})",
-                platform.name, platform_found, p_cfg.mode
+                "Platform [{}]: discovered {} unique games (Deduplication: {:?}, Mode: {:?})",
+                platform.name, platform_found, config.region_preference, p_cfg.mode
             )));
         }
 
@@ -481,19 +502,19 @@ impl InstallerEngine {
         if config.download_art && config.execution_mode != InstallerExecutionMode::RomsOnly && !art_tasks.is_empty() {
             let num_art_workers = config.art_threads.clamp(1, 16);
             let total_art_items = art_tasks.len();
-            let subfolder_name = if config.art_subfolder_name.trim().is_empty() {
+            let base_subfolder_name = if config.art_subfolder_name.trim().is_empty() {
                 "Imgs".to_string()
             } else {
                 config.art_subfolder_name.trim().to_string()
             };
 
             let _ = tx.send(InstallerEvent::Phase(format!(
-                "Phase 2/2: Syncing Boxart ({}, {} workers)...",
+                "Phase 2/2: Syncing Artwork & Media ({}, {} workers)...",
                 config.art_location_mode.label(),
                 num_art_workers
             )));
             let _ = tx.send(InstallerEvent::Log(format!(
-                "🎨 Starting parallel boxart sync for {} games to {} ({} threads)...",
+                "🎨 Starting parallel artwork & media sync for {} items to {} ({} threads)...",
                 total_art_items,
                 config.art_location_mode.label(),
                 num_art_workers
@@ -512,7 +533,7 @@ impl InstallerEngine {
                 let completed = art_completed.clone();
                 let downloaded_count = art_downloaded_count.clone();
                 let scraper = scraper.clone();
-                let subfolder = subfolder_name.clone();
+                let base_subfolder = base_subfolder_name.clone();
                 let location_mode = config.art_location_mode;
                 let total = total_art_items;
 
@@ -534,8 +555,13 @@ impl InstallerEngine {
                                 break;
                             };
 
+                            let subfolder = match task.art_type {
+                                ArtType::Boxart => base_subfolder.clone(),
+                                ArtType::Screenshot => "snaps".to_string(),
+                                ArtType::TitleScreen => "titles".to_string(),
+                            };
                             let source_art_dir = task.source_dir.join(&subfolder);
-                            let temp_cache_dir = ArtScraper::get_temp_art_cache_dir(task.platform.id);
+                            let temp_cache_dir = ArtScraper::get_typed_temp_art_cache_dir(task.platform.id, task.art_type);
 
                             // 1. Look for existing local artwork first (instant, 0 network calls!)
                             let local_found = ArtScraper::find_existing_local_art(&source_art_dir, &task.stem)
@@ -588,11 +614,12 @@ impl InstallerEngine {
                                     }
                                 };
 
-                                match scraper.download_boxart(&task.platform, &task.filename, &primary_save_target) {
+                                match scraper.download_artwork(&task.platform, task.art_type, &task.filename, &primary_save_target) {
                                     Ok(true) => {
                                         downloaded_count.fetch_add(1, Ordering::Relaxed);
                                         let _ = tx.send(InstallerEvent::Log(format!(
-                                            "[ART] Downloaded cover for '{}' -> {}",
+                                            "[ART] Downloaded {} for '{}' -> {}",
+                                            task.art_type.label(),
                                             task.stem,
                                             location_mode.label()
                                         )));
@@ -621,7 +648,7 @@ impl InstallerEngine {
                             let _ = tx.send(InstallerEvent::Progress {
                                 current,
                                 total,
-                                item: format!("Cover: {}", task.stem),
+                                item: format!("{}: {}", task.art_type.label(), task.stem),
                             });
                         }
                     });
@@ -637,7 +664,7 @@ impl InstallerEngine {
 
             summary.total_art_downloaded = art_downloaded_count.load(Ordering::Relaxed);
             let _ = tx.send(InstallerEvent::Log(format!(
-                "✓ Phase 2 Complete: {} boxart covers downloaded/synced.",
+                "✓ Phase 2 Complete: {} media items downloaded/synced.",
                 summary.total_art_downloaded
             )));
         }

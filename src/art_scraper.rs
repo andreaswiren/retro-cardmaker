@@ -10,6 +10,39 @@ pub struct ArtScraper {
     client: Client,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum ArtType {
+    Boxart,
+    Screenshot,
+    TitleScreen,
+}
+
+impl ArtType {
+    pub fn libretro_folder(&self) -> &'static str {
+        match self {
+            Self::Boxart => "Named_Boxarts",
+            Self::Screenshot => "Named_Snaps",
+            Self::TitleScreen => "Named_Titles",
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Boxart => "Boxart (Covers)",
+            Self::Screenshot => "Screenshots (Snaps)",
+            Self::TitleScreen => "Title Screens",
+        }
+    }
+
+    pub fn default_subfolder(&self) -> &'static str {
+        match self {
+            Self::Boxart => "Imgs",
+            Self::Screenshot => "snaps",
+            Self::TitleScreen => "titles",
+        }
+    }
+}
+
 impl ArtScraper {
     pub fn new() -> Self {
         let client = Client::builder()
@@ -21,11 +54,19 @@ impl ArtScraper {
         Self { client }
     }
 
-    /// Returns the application temporary cache directory for a given platform
+    /// Returns the application temporary cache directory for a given platform and art type
     pub fn get_temp_art_cache_dir(platform_id: &str) -> PathBuf {
         std::env::temp_dir()
             .join("retro-cardmaker")
             .join("art_cache")
+            .join(platform_id)
+    }
+
+    pub fn get_typed_temp_art_cache_dir(platform_id: &str, art_type: ArtType) -> PathBuf {
+        std::env::temp_dir()
+            .join("retro-cardmaker")
+            .join("art_cache")
+            .join(art_type.default_subfolder())
             .join(platform_id)
     }
 
@@ -123,11 +164,12 @@ impl ArtScraper {
         candidates
     }
 
-    /// Attempts to download boxart for a ROM and save it to `target_path`.
+    /// Attempts to download artwork (Boxart, Screenshot, or Title) for a ROM and save it to `target_path`.
     /// Returns Ok(true) if newly downloaded, Ok(false) if already present, or Err on failure.
-    pub fn download_boxart(
+    pub fn download_artwork(
         &self,
         platform: &PlatformInfo,
+        art_type: ArtType,
         rom_filename: &str,
         target_path: &Path,
     ) -> Result<bool, String> {
@@ -151,8 +193,9 @@ impl ArtScraper {
         for name in &names_to_try {
             let encoded_name = urlencoding_encode(name);
             let url = format!(
-                "https://raw.githubusercontent.com/libretro-thumbnails/{}/master/Named_Boxarts/{}.png",
+                "https://raw.githubusercontent.com/libretro-thumbnails/{}/master/{}/{}.png",
                 platform.libretro_name,
+                art_type.libretro_folder(),
                 encoded_name
             );
 
@@ -171,7 +214,17 @@ impl ArtScraper {
             }
         }
 
-        Err(format!("Boxart not found on Libretro CDN for {}", rom_filename))
+        Err(format!("{} not found on Libretro CDN for {}", art_type.label(), rom_filename))
+    }
+
+    /// Convenience wrapper for downloading boxart covers
+    pub fn download_boxart(
+        &self,
+        platform: &PlatformInfo,
+        rom_filename: &str,
+        target_path: &Path,
+    ) -> Result<bool, String> {
+        self.download_artwork(platform, ArtType::Boxart, rom_filename, target_path)
     }
 }
 

@@ -1,5 +1,6 @@
 pub mod art_scraper;
 pub mod cli;
+pub mod dedup;
 pub mod drives;
 pub mod favorites;
 pub mod gui;

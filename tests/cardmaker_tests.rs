@@ -348,6 +348,8 @@ fn test_art_location_mode_and_local_art_lookup() {
 
 #[test]
 fn test_installer_parallel_and_two_phase_config() {
+    use retro_cardmaker::art_scraper::ArtType;
+    use retro_cardmaker::dedup::RegionPreference;
     use retro_cardmaker::installer::{ArtLocationMode, InstallConfig, InstallerExecutionMode};
     use std::path::PathBuf;
 
@@ -360,8 +362,11 @@ fn test_installer_parallel_and_two_phase_config() {
         profile_id: ProfileId::AnbernicRgDsLauncher,
         platforms: vec![],
         download_art: true,
+        art_types: vec![ArtType::Boxart, ArtType::Screenshot],
         art_location_mode: ArtLocationMode::RomSourceSubfolder,
         art_subfolder_name: "Imgs".to_string(),
+        region_preference: RegionPreference::UsaFirst,
+        exclude_betas: true,
         copy_threads: 4,
         art_threads: 6,
         copy_roms_first: true,
@@ -373,6 +378,105 @@ fn test_installer_parallel_and_two_phase_config() {
     assert!(config.copy_roms_first);
     assert_eq!(config.execution_mode, InstallerExecutionMode::FullInstall);
     assert_eq!(config.art_location_mode, ArtLocationMode::RomSourceSubfolder);
+    assert_eq!(config.art_types.len(), 2);
+    assert_eq!(config.region_preference, RegionPreference::UsaFirst);
 }
+
+#[test]
+fn test_1g1r_deduplication_regional_preferences() {
+    use retro_cardmaker::dedup::{filter_roms_1g1r, RegionPreference};
+
+    let roms = vec![
+        "Pokemon - Emerald Version (USA, Europe).gba".to_string(),
+        "Pokemon - Emerald Version (Europe) (En,Fr,De,Es,It).gba".to_string(),
+        "Pokemon - Emerald Version (Japan).gba".to_string(),
+        "Super Mario World (USA).sfc".to_string(),
+        "Super Mario World (Europe).sfc".to_string(),
+        "Super Mario World (Japan).sfc".to_string(),
+        "Super Mario World (USA) (Beta).sfc".to_string(),
+    ];
+
+    // 1. USA First (exclude betas)
+    let res_usa = filter_roms_1g1r(&roms, RegionPreference::UsaFirst, true);
+    assert_eq!(res_usa.kept_files.len(), 2);
+    assert!(res_usa.kept_files.contains(&"Pokemon - Emerald Version (USA, Europe).gba".to_string()));
+    assert!(res_usa.kept_files.contains(&"Super Mario World (USA).sfc".to_string()));
+    assert_eq!(res_usa.duplicates_filtered, 4);
+    assert_eq!(res_usa.betas_filtered, 1);
+
+    // 2. Europe First (exclude betas)
+    let res_eu = filter_roms_1g1r(&roms, RegionPreference::EuropeFirst, true);
+    assert_eq!(res_eu.kept_files.len(), 2);
+    assert!(res_eu.kept_files.contains(&"Pokemon - Emerald Version (Europe) (En,Fr,De,Es,It).gba".to_string()));
+    assert!(res_eu.kept_files.contains(&"Super Mario World (Europe).sfc".to_string()));
+
+    // 3. Japan First (exclude betas)
+    let res_jp = filter_roms_1g1r(&roms, RegionPreference::JapanFirst, true);
+    assert_eq!(res_jp.kept_files.len(), 2);
+    assert!(res_jp.kept_files.contains(&"Pokemon - Emerald Version (Japan).gba".to_string()));
+    assert!(res_jp.kept_files.contains(&"Super Mario World (Japan).sfc".to_string()));
+
+    // 4. None (Keep All Clones, but exclude betas)
+    let res_all = filter_roms_1g1r(&roms, RegionPreference::None, true);
+    assert_eq!(res_all.kept_files.len(), 6);
+    assert!(!res_all.kept_files.contains(&"Super Mario World (USA) (Beta).sfc".to_string()));
+}
+
+#[test]
+fn test_multi_art_type_routing_launcher_profiles() {
+    use retro_cardmaker::art_scraper::ArtType;
+    use std::path::Path;
+
+    let base = Path::new("E:\\roms");
+    let gba = find_platform_by_id("gba").unwrap();
+
+    // 1. EmulationStation ES-DE: covers, screenshots, titles
+    let es_prof = LauncherProfile::get_by_id(ProfileId::EmulationStationEsDe);
+    let boxart_dest = es_prof.get_typed_art_destination(base, gba, "Pokemon - Emerald", ArtType::Boxart);
+    assert_eq!(boxart_dest, base.join("downloaded_media").join("gba").join("covers").join("Pokemon - Emerald.png"));
+
+    let snap_dest = es_prof.get_typed_art_destination(base, gba, "Pokemon - Emerald", ArtType::Screenshot);
+    assert_eq!(snap_dest, base.join("downloaded_media").join("gba").join("screenshots").join("Pokemon - Emerald.png"));
+
+    let title_dest = es_prof.get_typed_art_destination(base, gba, "Pokemon - Emerald", ArtType::TitleScreen);
+    assert_eq!(title_dest, base.join("downloaded_media").join("gba").join("titles").join("Pokemon - Emerald.png"));
+
+    // 2. Anbernic RG DS: Imgs, snaps, titles
+    let anbernic = LauncherProfile::get_by_id(ProfileId::AnbernicRgDsLauncher);
+    let a_box = anbernic.get_typed_art_destination(base, gba, "Pokemon - Emerald", ArtType::Boxart);
+    assert_eq!(a_box, base.join("GBA").join("Imgs").join("Pokemon - Emerald.png"));
+
+    let a_snap = anbernic.get_typed_art_destination(base, gba, "Pokemon - Emerald", ArtType::Screenshot);
+    assert_eq!(a_snap, base.join("GBA").join("snaps").join("Pokemon - Emerald.png"));
+
+    let a_title = anbernic.get_typed_art_destination(base, gba, "Pokemon - Emerald", ArtType::TitleScreen);
+    assert_eq!(a_title, base.join("GBA").join("titles").join("Pokemon - Emerald.png"));
+}
+
+#[test]
+fn test_anbernic_rg_ds_folder_mappings_matching_sd_card() {
+    let anbernic = LauncherProfile::get_by_id(ProfileId::AnbernicRgDsLauncher);
+
+    let check = |id: &str, expected: &str| {
+        let p = find_platform_by_id(id).unwrap_or_else(|| panic!("Platform {} not found", id));
+        assert_eq!(anbernic.get_platform_folder(p), expected, "Platform {} mapping failed", id);
+    };
+
+    check("gbc", "GBC");
+    check("gba", "GBA");
+    check("gb", "GB");
+    check("nds", "NDS");
+    check("nes", "FC");
+    check("snes", "SFC");
+    check("n64", "N64");
+    check("sms", "SMS");
+    check("megadrive", "MD");
+    check("gamegear", "GG");
+    check("saturn", "SATURN");
+    check("dreamcast", "DREAMCAST");
+    check("psx", "PS");
+    check("psp", "PSP");
+}
+
 
 
