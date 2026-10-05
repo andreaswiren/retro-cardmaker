@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-10-06
+
+### Added
+- **Multi-Destination Artwork Storage & Permanent Caching**:
+  - Added option to store downloaded boxart in a subfolder of the ROM source directory (`<source_dir>/Imgs`, `covers`, `boxart`, `media`, or custom text). Covers are stored permanently on your PC alongside your ROMs and automatically synced to target SD cards.
+  - Added system temporary cache directory option (`%TEMP%\retro-cardmaker\art_cache\<platform>`).
+  - Added intelligent local artwork reuse (`find_existing_local_art`): if artwork is already present locally in source subfolders or temp cache, Retro CardMaker instantly reuses it and copies it directly to SD cards at full SSD speed with 0 network calls.
+- **Two-Phase Transfer Pipeline (ROMs First, Art Later)**:
+  - Separated the installation workflow into two distinct, high-performance phases:
+    - **Phase 1: High-Speed Parallel ROM Copying**: Transfres 100% of ROMs and companion files first without any network latency throttling disk I/O.
+    - **Phase 2: High-Speed Parallel Artwork Syncing**: Scrapes, caches, and syncs all boxart in a dedicated second phase.
+  - Added standalone `📥 SYNC BOXART ONLY` action button to scrape and cache boxart on demand without re-copying ROMs or re-formatting SD cards.
+- **High-Speed Parallel Multi-Worker Threading**:
+  - Implemented multi-threaded worker pools for both file copying (`copy_threads`, configurable 1 to 16, default 4) and artwork scraping (`art_threads`, configurable 2 to 16, default 6).
+  - Eliminates single-file sequential bottlenecks and dramatically accelerates transfer and download throughput.
+- **Enhanced Settings Tab & Card 4 UI Controls**:
+  - Added interactive artwork location selector chips, subfolder preset pills, thread pool sliders/selectors, and pipeline ordering controls across both Card 4 (Live ROMs & Boxart Preview) and the Settings tab.
+
 ## [0.2.4] - 2026-10-05
 
 ### Added

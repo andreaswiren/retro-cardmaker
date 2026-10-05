@@ -10,8 +10,8 @@ use eframe::egui::{self, Color32, Margin, RichText, ScrollArea, Stroke, Vec2};
 use crate::drives::{get_available_drives, is_elevated, relaunch_as_admin, DriveInfo, FormatFileSystem};
 use crate::favorites::{load_favorites, save_favorites, FavoritesList};
 use crate::installer::{
-    CopyMode, InstallConfig, InstallSummary, InstallerEngine, InstallerEvent,
-    PlatformInstallConfig,
+    ArtLocationMode, CopyMode, InstallConfig, InstallSummary, InstallerEngine, InstallerEvent,
+    InstallerExecutionMode, PlatformInstallConfig,
 };
 use crate::launcher_profiles::{LauncherProfile, ProfileId, PROFILES};
 use crate::platforms::{filter_primary_rom_files, find_platform_by_dir_name, PlatformInfo, PLATFORMS};
@@ -366,8 +366,13 @@ pub struct RetroCardMakerApp {
     pub selected_platform_idx: usize,
     pub rom_search_query: String,
 
-    // Step 4: Artwork
+    // Step 4: Artwork & Parallel Workers
     pub download_art: bool,
+    pub art_location_mode: ArtLocationMode,
+    pub art_subfolder_name: String,
+    pub copy_threads: usize,
+    pub art_threads: usize,
+    pub copy_roms_first: bool,
 
     // Step 5: Installer Execution & Progress
     pub is_running: bool,
@@ -438,6 +443,11 @@ impl RetroCardMakerApp {
             rom_search_query: String::new(),
 
             download_art: true,
+            art_location_mode: ArtLocationMode::RomSourceSubfolder,
+            art_subfolder_name: "Imgs".to_string(),
+            copy_threads: 4,
+            art_threads: 6,
+            copy_roms_first: true,
 
             is_running: false,
             current_phase: "Ready".to_string(),
@@ -710,6 +720,12 @@ impl RetroCardMakerApp {
             profile_id: self.selected_profile_id,
             platforms: platform_configs,
             download_art: self.download_art,
+            art_location_mode: self.art_location_mode,
+            art_subfolder_name: self.art_subfolder_name.clone(),
+            copy_threads: self.copy_threads,
+            art_threads: self.art_threads,
+            copy_roms_first: self.copy_roms_first,
+            execution_mode: InstallerExecutionMode::FullInstall,
         };
 
         let cancel_flag = Arc::new(AtomicBool::new(false));
@@ -721,7 +737,72 @@ impl RetroCardMakerApp {
         self.install_summary = None;
         self.install_error = None;
         self.logs.clear();
-        self.logs.push(format!("[INIT] Starting QuickInstaller for drive {}...", clean_drive));
+        self.logs.push(format!("[INIT] Starting QuickInstaller for drive {} ({} copy workers, {} art workers)...", clean_drive, self.copy_threads, self.art_threads));
+
+        std::thread::spawn(move || {
+            InstallerEngine::run(config, cancel_flag, tx);
+        });
+    }
+
+    pub fn start_sync_art_only(&mut self) {
+        let mut platform_configs = Vec::new();
+        for p in &self.platform_states {
+            if p.enabled {
+                if let Some(ref dir) = p.found_dir {
+                    platform_configs.push(PlatformInstallConfig {
+                        platform_id: p.platform.id.to_string(),
+                        source_dir: dir.clone(),
+                        mode: p.mode,
+                        favorites: p.favorites.clone(),
+                    });
+                }
+            }
+        }
+
+        if platform_configs.is_empty() {
+            self.install_error = Some("No platforms selected or no ROMs found!".to_string());
+            return;
+        }
+
+        let (clean_drive, dest_path) = if let Some(drive) = self.drives.get(self.selected_drive_idx) {
+            let clean = drive.letter.trim_end_matches('\\').trim_end_matches('/');
+            let dest = if self.subfolder_name.trim().is_empty() {
+                PathBuf::from(format!("{}\\", clean))
+            } else {
+                PathBuf::from(format!("{}\\{}", clean, self.subfolder_name.trim()))
+            };
+            (clean.to_string(), dest)
+        } else {
+            ("".to_string(), PathBuf::from("."))
+        };
+
+        let config = InstallConfig {
+            drive_letter: clean_drive,
+            destination_path: dest_path,
+            format_option: None,
+            wipe_and_repartition: false,
+            volume_label: self.volume_label.clone(),
+            profile_id: self.selected_profile_id,
+            platforms: platform_configs,
+            download_art: true,
+            art_location_mode: self.art_location_mode,
+            art_subfolder_name: self.art_subfolder_name.clone(),
+            copy_threads: self.copy_threads,
+            art_threads: self.art_threads,
+            copy_roms_first: true,
+            execution_mode: InstallerExecutionMode::ArtOnly,
+        };
+
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        self.cancel_flag = cancel_flag.clone();
+        let (tx, rx): (Sender<InstallerEvent>, Receiver<InstallerEvent>) = mpsc::channel();
+        self.event_rx = Some(rx);
+
+        self.is_running = true;
+        self.install_summary = None;
+        self.install_error = None;
+        self.logs.clear();
+        self.logs.push(format!("[INIT] Starting Standalone Boxart Sync ({:?}, {} threads)...", self.art_location_mode, self.art_threads));
 
         std::thread::spawn(move || {
             InstallerEngine::run(config, cancel_flag, tx);
@@ -1433,12 +1514,102 @@ impl RetroCardMakerApp {
                 });
             });
 
-            ui.add_space(6.0);
+            // If Boxart sync is enabled, show artwork target location and parallel configuration
+            if self.download_art {
+                ui.add_space(4.0);
+                egui::Frame::new()
+                    .fill(Color32::from_rgb(8, 12, 18))
+                    .stroke(Stroke::new(1.0, Color32::from_rgb(20, 28, 40)))
+                    .corner_radius(6)
+                    .inner_margin(Margin::symmetric(8, 6))
+                    .show(ui, |ui| {
+                        // Row 1: Target Location Selector
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Save Art To:").size(11.5).strong().color(Color32::from_gray(190)));
+
+                            let is_sub = self.art_location_mode == ArtLocationMode::RomSourceSubfolder;
+                            let is_temp = self.art_location_mode == ArtLocationMode::TempCacheFolder;
+                            let is_sd = self.art_location_mode == ArtLocationMode::TargetDriveOnly;
+
+                            if ui.selectable_label(is_sub, "📂 Source Subfolder").clicked() {
+                                self.art_location_mode = ArtLocationMode::RomSourceSubfolder;
+                            }
+                            if ui.selectable_label(is_temp, "⚡ Temp Cache").clicked() {
+                                self.art_location_mode = ArtLocationMode::TempCacheFolder;
+                            }
+                            if ui.selectable_label(is_sd, "📁 SD Card Only").clicked() {
+                                self.art_location_mode = ArtLocationMode::TargetDriveOnly;
+                            }
+                        });
+
+                        // Row 2: Subfolder options or path details
+                        ui.horizontal(|ui| {
+                            match self.art_location_mode {
+                                ArtLocationMode::RomSourceSubfolder => {
+                                    ui.label(RichText::new("Subfolder:").size(11.0).color(Color32::from_gray(150)));
+                                    for name in &["Imgs", "covers", "boxart", "media"] {
+                                        let sel = self.art_subfolder_name == *name;
+                                        if ui.selectable_label(sel, *name).clicked() {
+                                            self.art_subfolder_name = name.to_string();
+                                        }
+                                    }
+                                    ui.add_sized([65.0, 18.0], egui::TextEdit::singleline(&mut self.art_subfolder_name));
+                                    ui.label(RichText::new("(saved alongside ROMs & synced to SD)").size(11.0).color(Color32::from_rgb(16, 185, 129)));
+                                }
+                                ArtLocationMode::TempCacheFolder => {
+                                    ui.label(RichText::new("Cache: %TEMP%\\retro-cardmaker\\art_cache (synced to SD)").size(11.0).color(Color32::from_rgb(0, 229, 255)));
+                                }
+                                ArtLocationMode::TargetDriveOnly => {
+                                    ui.label(RichText::new("Saves directly to SD card launcher folders only").size(11.0).color(Color32::from_gray(150)));
+                                }
+                            }
+                        });
+
+                        // Row 3: Parallel Workers & Action button
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Workers:").size(11.0).color(Color32::from_gray(150)));
+                            ui.label(RichText::new("Copy:").size(10.5).color(Color32::GRAY));
+                            for c in [2, 4, 8] {
+                                if ui.selectable_label(self.copy_threads == c, c.to_string()).clicked() {
+                                    self.copy_threads = c;
+                                }
+                            }
+                            ui.label(RichText::new("Art:").size(10.5).color(Color32::GRAY));
+                            for c in [2, 4, 6, 8] {
+                                if ui.selectable_label(self.art_threads == c, c.to_string()).clicked() {
+                                    self.art_threads = c;
+                                }
+                            }
+
+                            let avail = (ui.available_width() - 4.0).max(10.0);
+                            ui.allocate_ui(Vec2::new(avail, 20.0), |ui| {
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    let btn_sync = egui::Button::new(
+                                        RichText::new("📥 Sync Boxart Now")
+                                            .size(11.0)
+                                            .strong()
+                                            .color(Color32::from_rgb(0, 229, 255)),
+                                    )
+                                    .fill(Color32::from_rgb(0, 32, 46))
+                                    .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
+                                    .corner_radius(4);
+
+                                    let can_sync = self.platform_states.iter().any(|p| p.enabled && p.found_dir.is_some());
+                                    if ui.add(btn_sync).on_hover_text("Download/sync boxart for all enabled platforms now without copying ROMs").clicked() && !self.is_running && can_sync {
+                                        self.start_sync_art_only();
+                                    }
+                                });
+                            });
+                        });
+                    });
+            }
+
+            ui.add_space(4.0);
 
             // Games Table
             ScrollArea::vertical()
                 .id_salt("card4_roms_scroll")
-                .max_height(230.0)
+                .max_height(145.0)
                 .show(ui, |ui| {
                 if let Some(ref p_state) = active_plat {
                     let search_lower = self.rom_search_query.to_lowercase();
@@ -1528,29 +1699,44 @@ impl RetroCardMakerApp {
             let sync_text = format!("{:.0}%", sync_frac * 100.0);
             render_neon_progress_bar(ui, "PLATFORM SYNC", sync_frac, &sync_text);
 
-            // Progress Bar 2: FILE COPY
-            let copy_frac = if self.progress_total > 0 {
-                self.progress_current as f32 / self.progress_total as f32
+            // Progress Bar 2: FILE COPY or BOXART SYNC
+            let (bar_label, copy_frac, copy_text) = if self.current_phase.contains("Art") || self.current_phase.contains("Boxart") {
+                let f = if self.progress_total > 0 {
+                    self.progress_current as f32 / self.progress_total as f32
+                } else {
+                    0.0
+                };
+                let t = if self.progress_total > 0 {
+                    format!("{}/{} ({:.0}%)", self.progress_current, self.progress_total, f * 100.0)
+                } else {
+                    "0/0 (0%)".to_string()
+                };
+                (format!("BOXART SYNC ({} workers)", self.art_threads), f, t)
             } else {
-                0.0
+                let f = if self.progress_total > 0 {
+                    self.progress_current as f32 / self.progress_total as f32
+                } else {
+                    0.0
+                };
+                let t = if self.progress_total > 0 {
+                    format!("{}/{} ({:.0}%)", self.progress_current, self.progress_total, f * 100.0)
+                } else {
+                    "0/0 (0%)".to_string()
+                };
+                (format!("FILE COPY ({} workers)", self.copy_threads), f, t)
             };
-            let copy_text = if self.progress_total > 0 {
-                format!("{}/{} ({:.0}%)", self.progress_current, self.progress_total, copy_frac * 100.0)
-            } else {
-                "0/0 (0%)".to_string()
-            };
-            render_neon_progress_bar(ui, "FILE COPY", copy_frac, &copy_text);
+            render_neon_progress_bar(ui, &bar_label, copy_frac, &copy_text);
 
             let item_label = if self.current_item.is_empty() {
-                if self.is_running { "Copying game assets..." } else { "System idling. Ready for quickinstall." }
+                if self.is_running { "Transferring game assets..." } else { "System idling. Ready for quickinstall." }
             } else {
                 &self.current_item
             };
             ui.label(RichText::new(item_label).size(12.0).color(Color32::from_gray(160)));
 
-            ui.add_space(8.0);
+            ui.add_space(6.0);
 
-            // Giant QuickInstall Button
+            // Action Buttons
             if !self.is_running {
                 let has_admin = is_elevated();
                 let can_start = !self.drives.is_empty()
@@ -1561,15 +1747,32 @@ impl RetroCardMakerApp {
 
                 let start_btn = egui::Button::new(
                     RichText::new(format!("🚀 START QUICKINSTALL ({})", target_letter))
-                        .size(15.0)
+                        .size(14.5)
                         .strong()
                         .color(Color32::BLACK),
                 )
                 .fill(Color32::from_rgb(16, 185, 129))
                 .corner_radius(8);
 
-                if ui.add_sized([ui.available_width(), 42.0], start_btn).clicked() && can_start {
+                if ui.add_sized([ui.available_width(), 38.0], start_btn).clicked() && can_start {
                     self.start_install();
+                }
+
+                ui.add_space(4.0);
+
+                let can_sync_art = self.platform_states.iter().any(|p| p.enabled && p.found_dir.is_some());
+                let sync_art_btn = egui::Button::new(
+                    RichText::new("📥 SYNC / DOWNLOAD BOXART ONLY")
+                        .size(12.0)
+                        .strong()
+                        .color(Color32::from_rgb(0, 229, 255)),
+                )
+                .fill(Color32::from_rgb(0, 28, 42))
+                .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
+                .corner_radius(6);
+
+                if ui.add_sized([ui.available_width(), 28.0], sync_art_btn).clicked() && can_sync_art {
+                    self.start_sync_art_only();
                 }
 
                 if !can_start {
@@ -2341,6 +2544,75 @@ impl RetroCardMakerApp {
                     ui.add_space(4.0);
                     ui.label(RichText::new("• Base URL: https://raw.githubusercontent.com/libretro-thumbnails/libretro-thumbnails/master/\n• Automatic name sanitization (&, :, /, \\ converted to _).\n• Zero API key requirement with high-speed parallel asset syncing.").size(12.0).color(Color32::from_gray(160)));
                 });
+            });
+
+            ui.add_space(12.0);
+            ui.separator();
+            ui.add_space(8.0);
+
+            // Artwork & Parallel Workers Config
+            ui.label(RichText::new("Artwork & High-Speed Parallel Performance").size(13.5).strong().color(Color32::WHITE));
+            ui.add_space(6.0);
+
+            egui::Grid::new("settings_art_grid").spacing([20.0, 10.0]).show(ui, |ui| {
+                ui.label(RichText::new("Art Destination:").size(12.0).strong().color(Color32::from_gray(200)));
+                ui.horizontal(|ui| {
+                    let is_sub = self.art_location_mode == ArtLocationMode::RomSourceSubfolder;
+                    let is_temp = self.art_location_mode == ArtLocationMode::TempCacheFolder;
+                    let is_sd = self.art_location_mode == ArtLocationMode::TargetDriveOnly;
+
+                    if ui.selectable_label(is_sub, "📂 ROM Source Subfolder").clicked() {
+                        self.art_location_mode = ArtLocationMode::RomSourceSubfolder;
+                    }
+                    if ui.selectable_label(is_temp, "⚡ Temp Cache Folder").clicked() {
+                        self.art_location_mode = ArtLocationMode::TempCacheFolder;
+                    }
+                    if ui.selectable_label(is_sd, "📁 Target SD Card Only").clicked() {
+                        self.art_location_mode = ArtLocationMode::TargetDriveOnly;
+                    }
+                });
+                ui.end_row();
+
+                if self.art_location_mode == ArtLocationMode::RomSourceSubfolder {
+                    ui.label(RichText::new("Source Subfolder:").size(12.0).strong().color(Color32::from_gray(200)));
+                    ui.horizontal(|ui| {
+                        for name in &["Imgs", "covers", "boxart", "media"] {
+                            let sel = self.art_subfolder_name == *name;
+                            if ui.selectable_label(sel, *name).clicked() {
+                                self.art_subfolder_name = name.to_string();
+                            }
+                        }
+                        ui.add_sized([80.0, 20.0], egui::TextEdit::singleline(&mut self.art_subfolder_name));
+                        ui.label(RichText::new("Stores covers permanently alongside your ROMs on your PC").size(11.5).color(Color32::from_rgb(16, 185, 129)));
+                    });
+                    ui.end_row();
+                }
+
+                ui.label(RichText::new("Parallel Copy Threads:").size(12.0).strong().color(Color32::from_gray(200)));
+                ui.horizontal(|ui| {
+                    for c in [1, 2, 4, 8, 12] {
+                        if ui.selectable_label(self.copy_threads == c, format!("{} threads", c)).clicked() {
+                            self.copy_threads = c;
+                        }
+                    }
+                });
+                ui.end_row();
+
+                ui.label(RichText::new("Parallel Art Threads:").size(12.0).strong().color(Color32::from_gray(200)));
+                ui.horizontal(|ui| {
+                    for c in [2, 4, 6, 8, 16] {
+                        if ui.selectable_label(self.art_threads == c, format!("{} threads", c)).clicked() {
+                            self.art_threads = c;
+                        }
+                    }
+                });
+                ui.end_row();
+
+                ui.label(RichText::new("Transfer Pipeline Order:").size(12.0).strong().color(Color32::from_gray(200)));
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut self.copy_roms_first, "Copy all ROMs first (Phase 1), then download boxart later (Phase 2)");
+                });
+                ui.end_row();
             });
 
             ui.add_space(16.0);

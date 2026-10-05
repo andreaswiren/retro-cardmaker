@@ -7,7 +7,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::drives::{format_drive, get_available_drives, FormatFileSystem};
 use crate::favorites::load_favorites;
-use crate::installer::{CopyMode, InstallConfig, InstallerEngine, InstallerEvent, PlatformInstallConfig};
+use crate::installer::{
+    ArtLocationMode, CopyMode, InstallConfig, InstallerEngine, InstallerEvent,
+    InstallerExecutionMode, PlatformInstallConfig,
+};
 use crate::launcher_profiles::{ProfileId, PROFILES};
 use crate::platforms::PLATFORMS;
 
@@ -102,6 +105,30 @@ pub enum Commands {
         /// Comma-separated list of platform IDs (e.g. 'gba,snes,psx,nds' or 'all')
         #[arg(long, default_value = "all")]
         platforms: String,
+
+        /// Artwork storage location: "source" (ROM source subfolder), "temp" (cache), or "sd" (SD card only)
+        #[arg(long, default_value = "source")]
+        art_location: String,
+
+        /// Subfolder name when storing in ROM source folder (default: "Imgs")
+        #[arg(long, default_value = "Imgs")]
+        art_subfolder: String,
+
+        /// Number of parallel threads for copying ROMs (default: 4)
+        #[arg(long, default_value_t = 4)]
+        copy_threads: usize,
+
+        /// Number of parallel threads for syncing boxart (default: 6)
+        #[arg(long, default_value_t = 6)]
+        art_threads: usize,
+
+        /// Only download/sync boxart without copying ROMs
+        #[arg(long)]
+        art_only: bool,
+
+        /// Only copy ROMs without downloading boxart
+        #[arg(long)]
+        roms_only: bool,
     },
 
     /// Interactive step-by-step terminal wizard
@@ -246,6 +273,12 @@ pub fn run_cli_command(command: Commands) {
             format,
             wipe_and_repartition,
             platforms,
+            art_location,
+            art_subfolder,
+            copy_threads,
+            art_threads,
+            art_only,
+            roms_only,
         } => {
             run_headless_install(
                 &drive,
@@ -257,6 +290,12 @@ pub fn run_cli_command(command: Commands) {
                 format.map(Into::into),
                 wipe_and_repartition,
                 &platforms,
+                &art_location,
+                &art_subfolder,
+                copy_threads,
+                art_threads,
+                art_only,
+                roms_only,
             );
         }
 
@@ -276,6 +315,12 @@ fn run_headless_install(
     format_opt: Option<FormatFileSystem>,
     wipe_and_repartition: bool,
     platforms_filter: &str,
+    art_location_str: &str,
+    art_subfolder_str: &str,
+    copy_threads: usize,
+    art_threads: usize,
+    art_only: bool,
+    roms_only: bool,
 ) {
     let clean_drive = drive_letter.trim_end_matches('\\').trim_end_matches('/');
     let target_base = if dest_subfolder.trim().is_empty() {
@@ -284,13 +329,29 @@ fn run_headless_install(
         PathBuf::from(format!("{}\\{}", clean_drive, dest_subfolder.trim()))
     };
 
+    let art_mode = match art_location_str.to_lowercase().as_str() {
+        "sd" => ArtLocationMode::TargetDriveOnly,
+        "temp" => ArtLocationMode::TempCacheFolder,
+        _ => ArtLocationMode::RomSourceSubfolder,
+    };
+
+    let exec_mode = if art_only {
+        InstallerExecutionMode::ArtOnly
+    } else if roms_only {
+        InstallerExecutionMode::RomsOnly
+    } else {
+        InstallerExecutionMode::FullInstall
+    };
+
     println!("\n=== Starting Retro CardMaker QuickInstaller ===");
     println!("Target Drive: {}", clean_drive);
     println!("Destination: {}", target_base.display());
     println!("Source Directory: {}", source_root.display());
     println!("Profile: {:?}", profile_id);
+    println!("Execution Mode: {:?}", exec_mode);
     println!("Favorites Only: {}", favorites_only);
-    println!("Download Boxart: {}", download_art);
+    println!("Download Boxart: {} (Location: {:?}, Subfolder: '{}')", download_art && !roms_only, art_mode, art_subfolder_str);
+    println!("Workers: Copy = {}, Art = {}", copy_threads, art_threads);
     if let Some(f) = format_opt {
         println!("Will Format as: {}", f.as_str());
     }
@@ -344,7 +405,13 @@ fn run_headless_install(
         volume_label: "RETRO".to_string(),
         profile_id,
         platforms: platform_configs,
-        download_art,
+        download_art: download_art && !roms_only,
+        art_location_mode: art_mode,
+        art_subfolder_name: art_subfolder_str.to_string(),
+        copy_threads,
+        art_threads,
+        copy_roms_first: true,
+        execution_mode: exec_mode,
     };
 
     let cancel_flag = Arc::new(AtomicBool::new(false));
@@ -510,5 +577,11 @@ pub fn run_interactive_wizard() {
         format_opt,
         wipe_and_repartition,
         "all",
+        "source",
+        "Imgs",
+        4,
+        6,
+        false,
+        false,
     );
 }

@@ -312,3 +312,67 @@ fn test_privilege_check_elevation() {
     println!("Process elevation check: {}", elevated);
 }
 
+#[test]
+fn test_art_location_mode_and_local_art_lookup() {
+    use retro_cardmaker::installer::ArtLocationMode;
+    use std::fs;
+
+    assert_eq!(ArtLocationMode::RomSourceSubfolder.label(), "ROM Source Subfolder");
+    assert_eq!(ArtLocationMode::TempCacheFolder.label(), "Temp Cache Folder");
+    assert_eq!(ArtLocationMode::TargetDriveOnly.label(), "SD Card Only");
+
+    let temp_dir = std::env::temp_dir().join(format!("test_art_lookup_{}", std::process::id()));
+    let imgs_dir = temp_dir.join("Imgs");
+    let _ = fs::create_dir_all(&imgs_dir);
+
+    let art_file = imgs_dir.join("Super Mario World.png");
+    let _ = fs::write(&art_file, b"fake png data");
+
+    // 1. Exact stem lookup
+    let found = ArtScraper::find_existing_local_art(&imgs_dir, "Super Mario World");
+    assert_eq!(found, Some(art_file.clone()));
+
+    // 2. Extension check with jpg
+    let zelda_art = imgs_dir.join("Legend of Zelda, The.jpg");
+    let _ = fs::write(&zelda_art, b"fake jpg data");
+    let found_zelda = ArtScraper::find_existing_local_art(&imgs_dir, "Legend of Zelda, The");
+    assert_eq!(found_zelda, Some(zelda_art));
+
+    // 3. Fallback check (lookup with region tag "Super Mario World (USA)" finds "Super Mario World.png")
+    let found_fallback = ArtScraper::find_existing_local_art(&imgs_dir, "Super Mario World (USA)");
+    assert_eq!(found_fallback, Some(art_file));
+
+    // Cleanup
+    let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_installer_parallel_and_two_phase_config() {
+    use retro_cardmaker::installer::{ArtLocationMode, InstallConfig, InstallerExecutionMode};
+    use std::path::PathBuf;
+
+    let config = InstallConfig {
+        drive_letter: "E:".to_string(),
+        destination_path: PathBuf::from("E:\\roms"),
+        format_option: None,
+        wipe_and_repartition: false,
+        volume_label: "RETRO".to_string(),
+        profile_id: ProfileId::AnbernicRgDsLauncher,
+        platforms: vec![],
+        download_art: true,
+        art_location_mode: ArtLocationMode::RomSourceSubfolder,
+        art_subfolder_name: "Imgs".to_string(),
+        copy_threads: 4,
+        art_threads: 6,
+        copy_roms_first: true,
+        execution_mode: InstallerExecutionMode::FullInstall,
+    };
+
+    assert_eq!(config.copy_threads, 4);
+    assert_eq!(config.art_threads, 6);
+    assert!(config.copy_roms_first);
+    assert_eq!(config.execution_mode, InstallerExecutionMode::FullInstall);
+    assert_eq!(config.art_location_mode, ArtLocationMode::RomSourceSubfolder);
+}
+
+

@@ -1,20 +1,66 @@
+use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::thread;
 use walkdir::WalkDir;
 
 use crate::art_scraper::ArtScraper;
 use crate::drives::{format_drive, wipe_and_repartition_drive, FormatFileSystem};
 use crate::favorites::{load_favorites, FavoritesList};
 use crate::launcher_profiles::{LauncherProfile, ProfileId};
-use crate::platforms::{find_platform_by_id, filter_primary_rom_files, get_companion_files, PlatformInfo};
+use crate::platforms::{filter_primary_rom_files, find_platform_by_id, get_companion_files, PlatformInfo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CopyMode {
     AllRoms,
     FavoritesOnly,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ArtLocationMode {
+    /// Save directly to the SD card destination directory (e.g. <SD>/Roms/snes/Imgs)
+    TargetDriveOnly,
+    /// Save to a subfolder of the ROM source folder on PC (e.g. <source>/Imgs or <source>/covers) and sync to SD
+    RomSourceSubfolder,
+    /// Save to a local temporary cache folder (%TEMP%\retro-cardmaker\art_cache) and sync to SD
+    TempCacheFolder,
+}
+
+impl Default for ArtLocationMode {
+    fn default() -> Self {
+        Self::RomSourceSubfolder
+    }
+}
+
+impl ArtLocationMode {
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::TargetDriveOnly => "SD Card Only",
+            Self::RomSourceSubfolder => "ROM Source Subfolder",
+            Self::TempCacheFolder => "Temp Cache Folder",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::TargetDriveOnly => "Downloads artwork directly onto SD card structure only.",
+            Self::RomSourceSubfolder => "Saves artwork inside your PC's ROM folder (e.g. Imgs/) permanently, and copies to SD.",
+            Self::TempCacheFolder => "Caches artwork in system temp (%TEMP%/retro-cardmaker) and copies to SD.",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstallerExecutionMode {
+    /// Full installation: formats (if enabled), copies all ROMs (Phase 1), then syncs boxart (Phase 2)
+    FullInstall,
+    /// Only copies ROMs and companion files without boxart
+    RomsOnly,
+    /// Only scrapes/downloads boxart to the designated target without copying ROMs or formatting
+    ArtOnly,
 }
 
 #[derive(Debug, Clone)]
@@ -35,6 +81,12 @@ pub struct InstallConfig {
     pub profile_id: ProfileId,
     pub platforms: Vec<PlatformInstallConfig>,
     pub download_art: bool,
+    pub art_location_mode: ArtLocationMode,
+    pub art_subfolder_name: String,
+    pub copy_threads: usize,
+    pub art_threads: usize,
+    pub copy_roms_first: bool,
+    pub execution_mode: InstallerExecutionMode,
 }
 
 #[derive(Debug, Clone)]
@@ -42,6 +94,7 @@ pub struct InstallSummary {
     pub total_roms_copied: usize,
     pub total_art_downloaded: usize,
     pub total_bytes_copied: u64,
+    pub execution_mode: InstallerExecutionMode,
     pub errors: Vec<String>,
 }
 
@@ -58,6 +111,24 @@ pub enum InstallerEvent {
     Failed(String),
 }
 
+#[derive(Debug, Clone)]
+struct CopyTask {
+    _platform_name: String,
+    src_path: PathBuf,
+    dest_path: PathBuf,
+    filename: String,
+    is_companion: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ArtTask {
+    platform: PlatformInfo,
+    filename: String,
+    stem: String,
+    source_dir: PathBuf,
+    dest_art_path: Option<PathBuf>,
+}
+
 pub struct InstallerEngine;
 
 impl InstallerEngine {
@@ -71,43 +142,46 @@ impl InstallerEngine {
             total_roms_copied: 0,
             total_art_downloaded: 0,
             total_bytes_copied: 0,
+            execution_mode: config.execution_mode,
             errors: Vec::new(),
         };
 
-        // 1. Format or clean repartition drive if requested
-        if let Some(fs) = config.format_option {
-            if config.wipe_and_repartition {
-                let _ = tx.send(InstallerEvent::Phase(format!("Wiping & Repartitioning SD Card (MBR / {:?})...", fs)));
-                let _ = tx.send(InstallerEvent::Log(format!(
-                    "Wiping hidden partitions and repartitioning drive {} with {} filesystem...",
-                    config.drive_letter,
-                    fs.as_str()
-                )));
+        // 1. Format or clean repartition drive if requested (Skipped in ArtOnly mode)
+        if config.execution_mode != InstallerExecutionMode::ArtOnly {
+            if let Some(fs) = config.format_option {
+                if config.wipe_and_repartition {
+                    let _ = tx.send(InstallerEvent::Phase(format!("Wiping & Repartitioning SD Card (MBR / {:?})...", fs)));
+                    let _ = tx.send(InstallerEvent::Log(format!(
+                        "Wiping hidden partitions and repartitioning drive {} with {} filesystem...",
+                        config.drive_letter,
+                        fs.as_str()
+                    )));
 
-                match wipe_and_repartition_drive(&config.drive_letter, fs, &config.volume_label) {
-                    Ok(msg) => {
-                        let _ = tx.send(InstallerEvent::Log(msg));
+                    match wipe_and_repartition_drive(&config.drive_letter, fs, &config.volume_label) {
+                        Ok(msg) => {
+                            let _ = tx.send(InstallerEvent::Log(msg));
+                        }
+                        Err(err) => {
+                            let _ = tx.send(InstallerEvent::Failed(format!("Clean repartitioning failed: {}", err)));
+                            return;
+                        }
                     }
-                    Err(err) => {
-                        let _ = tx.send(InstallerEvent::Failed(format!("Clean repartitioning failed: {}", err)));
-                        return;
-                    }
-                }
-            } else {
-                let _ = tx.send(InstallerEvent::Phase(format!("Formatting SD Card ({:?})...", fs)));
-                let _ = tx.send(InstallerEvent::Log(format!(
-                    "Formatting drive {} with {} filesystem...",
-                    config.drive_letter,
-                    fs.as_str()
-                )));
+                } else {
+                    let _ = tx.send(InstallerEvent::Phase(format!("Formatting SD Card ({:?})...", fs)));
+                    let _ = tx.send(InstallerEvent::Log(format!(
+                        "Formatting drive {} with {} filesystem...",
+                        config.drive_letter,
+                        fs.as_str()
+                    )));
 
-                match format_drive(&config.drive_letter, fs, &config.volume_label) {
-                    Ok(msg) => {
-                        let _ = tx.send(InstallerEvent::Log(msg));
-                    }
-                    Err(err) => {
-                        let _ = tx.send(InstallerEvent::Failed(format!("Formatting failed: {}", err)));
-                        return;
+                    match format_drive(&config.drive_letter, fs, &config.volume_label) {
+                        Ok(msg) => {
+                            let _ = tx.send(InstallerEvent::Log(msg));
+                        }
+                        Err(err) => {
+                            let _ = tx.send(InstallerEvent::Failed(format!("Formatting failed: {}", err)));
+                            return;
+                        }
                     }
                 }
             }
@@ -118,22 +192,24 @@ impl InstallerEngine {
             return;
         }
 
-        // 2. Ensure base destination exists
-        if let Err(e) = fs::create_dir_all(&config.destination_path) {
-            let _ = tx.send(InstallerEvent::Failed(format!(
-                "Failed to create destination folder {}: {}",
-                config.destination_path.display(),
-                e
-            )));
-            return;
+        // 2. Ensure base destination exists if writing to target drive
+        if config.execution_mode != InstallerExecutionMode::ArtOnly || config.art_location_mode == ArtLocationMode::TargetDriveOnly {
+            if let Err(e) = fs::create_dir_all(&config.destination_path) {
+                let _ = tx.send(InstallerEvent::Failed(format!(
+                    "Failed to create destination folder {}: {}",
+                    config.destination_path.display(),
+                    e
+                )));
+                return;
+            }
         }
 
         let profile = LauncherProfile::get_by_id(config.profile_id);
-        let scraper = ArtScraper::new();
 
-        // 3. Scan all files to copy across platforms
+        // 3. Scan ROM directories and build task queues
         let _ = tx.send(InstallerEvent::Phase("Scanning ROM directories...".to_string()));
-        let mut tasks: Vec<(PlatformInfo, PathBuf, String)> = Vec::new(); // (platform, src_path, filename)
+        let mut copy_tasks: Vec<CopyTask> = Vec::new();
+        let mut art_tasks: Vec<ArtTask> = Vec::new();
 
         for p_cfg in &config.platforms {
             if cancel_flag.load(Ordering::Relaxed) {
@@ -189,7 +265,7 @@ impl InstallerEngine {
                 }
             }
 
-            // Filter for primary game entries (so audio and secondary binary tracks are not queued as separate items)
+            // Filter for primary game entries
             let raw_filenames: Vec<String> = found_files.iter().map(|(_, name)| name.clone()).collect();
             let primary_filenames = filter_primary_rom_files(platform.id, &raw_filenames);
             let primary_set: std::collections::HashSet<_> = primary_filenames.into_iter().collect();
@@ -207,155 +283,367 @@ impl InstallerEngine {
                     }
                 }
 
-                tasks.push((platform.clone(), path, filename));
                 platform_found += 1;
+
+                // 3a. Prepare ROM copy task
+                if config.execution_mode != InstallerExecutionMode::ArtOnly {
+                    let dest_rom_path = profile.get_rom_destination(
+                        &config.destination_path,
+                        &platform,
+                        &filename,
+                    );
+
+                    copy_tasks.push(CopyTask {
+                        _platform_name: platform.name.to_string(),
+                        src_path: path.clone(),
+                        dest_path: dest_rom_path,
+                        filename: filename.clone(),
+                        is_companion: false,
+                    });
+
+                    // Collect companion files (audio tracks, multiple bin data tracks)
+                    let companions = get_companion_files(&path);
+                    for comp_path in companions {
+                        if let Some(name_str) = comp_path.file_name().and_then(|s| s.to_str()) {
+                            let comp_filename = name_str.to_string();
+                            let dest_comp_path = profile.get_rom_destination(
+                                &config.destination_path,
+                                &platform,
+                                &comp_filename,
+                            );
+                            copy_tasks.push(CopyTask {
+                                _platform_name: platform.name.to_string(),
+                                src_path: comp_path,
+                                dest_path: dest_comp_path,
+                                filename: comp_filename,
+                                is_companion: true,
+                            });
+                        }
+                    }
+                }
+
+                // 3b. Prepare artwork task
+                if config.download_art && config.execution_mode != InstallerExecutionMode::RomsOnly {
+                    let stem = Path::new(&filename)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(&filename)
+                        .to_string();
+
+                    let dest_art_path = Some(profile.get_art_destination(
+                        &config.destination_path,
+                        &platform,
+                        &stem,
+                    ));
+
+                    art_tasks.push(ArtTask {
+                        platform: platform.clone(),
+                        filename: filename.clone(),
+                        stem,
+                        source_dir: p_cfg.source_dir.clone(),
+                        dest_art_path,
+                    });
+                }
             }
 
             let _ = tx.send(InstallerEvent::Log(format!(
-                "Platform [{}]: queued {} primary games (Mode: {:?})",
+                "Platform [{}]: discovered {} primary games (Mode: {:?})",
                 platform.name, platform_found, p_cfg.mode
             )));
         }
 
-        let total_tasks = tasks.len();
-        let _ = tx.send(InstallerEvent::Log(format!(
-            "Total ROMs to transfer: {}",
-            total_tasks
-        )));
+        // ====================================================================
+        // PHASE 1: HIGH-SPEED PARALLEL ROM COPYING
+        // ====================================================================
+        if config.execution_mode != InstallerExecutionMode::ArtOnly && !copy_tasks.is_empty() {
+            let num_workers = config.copy_threads.clamp(1, 16);
+            let total_copy_items = copy_tasks.len();
+            let _ = tx.send(InstallerEvent::Phase(format!(
+                "Phase 1/2: Copying ROMs ({} parallel workers)...",
+                num_workers
+            )));
+            let _ = tx.send(InstallerEvent::Log(format!(
+                "🚀 Starting parallel transfer of {} ROM/companion files across {} threads...",
+                total_copy_items, num_workers
+            )));
 
-        // 4. Copy ROMs and optionally download artwork
-        let _ = tx.send(InstallerEvent::Phase("Copying ROMs & Setting Up Art...".to_string()));
+            let copy_queue = Arc::new(Mutex::new(VecDeque::from(copy_tasks)));
+            let copy_completed = Arc::new(AtomicUsize::new(0));
+            let copy_roms_count = Arc::new(AtomicUsize::new(0));
+            let copy_bytes_count = Arc::new(AtomicU64::new(0));
+            let copy_errors = Arc::new(Mutex::new(Vec::<String>::new()));
 
-        for (idx, (platform, src_path, filename)) in tasks.iter().enumerate() {
-            if cancel_flag.load(Ordering::Relaxed) {
-                let _ = tx.send(InstallerEvent::Failed("Operation cancelled by user.".to_string()));
-                return;
-            }
+            let mut worker_handles = Vec::new();
+            for worker_id in 0..num_workers {
+                let queue = copy_queue.clone();
+                let cancel = cancel_flag.clone();
+                let tx = tx.clone();
+                let completed = copy_completed.clone();
+                let roms_count = copy_roms_count.clone();
+                let bytes_count = copy_bytes_count.clone();
+                let errors = copy_errors.clone();
+                let total = total_copy_items;
 
-            let current_num = idx + 1;
-            let _ = tx.send(InstallerEvent::Progress {
-                current: current_num,
-                total: total_tasks,
-                item: filename.clone(),
-            });
+                let handle = thread::Builder::new()
+                    .name(format!("rom-copy-worker-{}", worker_id))
+                    .spawn(move || {
+                        loop {
+                            if cancel.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            let item = {
+                                let mut lock = match queue.lock() {
+                                    Ok(l) => l,
+                                    Err(e) => e.into_inner(),
+                                };
+                                lock.pop_front()
+                            };
+                            let Some(task) = item else {
+                                break;
+                            };
 
-            // Target ROM path
-            let dest_rom_path = profile.get_rom_destination(
-                &config.destination_path,
-                platform,
-                filename,
-            );
+                            // Ensure destination parent directory exists
+                            if let Some(parent) = task.dest_path.parent() {
+                                if !parent.exists() {
+                                    let _ = fs::create_dir_all(parent);
+                                }
+                            }
 
-            if let Some(parent) = dest_rom_path.parent() {
-                if !parent.exists() {
-                    let _ = fs::create_dir_all(parent);
+                            // Check if file copy is needed
+                            let mut need_copy = true;
+                            if task.dest_path.exists() {
+                                if let (Ok(s_m), Ok(d_m)) = (task.src_path.metadata(), task.dest_path.metadata()) {
+                                    if s_m.len() == d_m.len() {
+                                        need_copy = false;
+                                    }
+                                }
+                            }
+
+                            if need_copy {
+                                match fs::copy(&task.src_path, &task.dest_path) {
+                                    Ok(bytes) => {
+                                        bytes_count.fetch_add(bytes, Ordering::Relaxed);
+                                        if !task.is_companion {
+                                            roms_count.fetch_add(1, Ordering::Relaxed);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        let err_msg = format!("Failed to copy {}: {}", task.filename, e);
+                                        if let Ok(mut errs) = errors.lock() {
+                                            errs.push(err_msg.clone());
+                                        }
+                                        let _ = tx.send(InstallerEvent::Log(format!("ERROR: {}", err_msg)));
+                                    }
+                                }
+                            } else if !task.is_companion {
+                                roms_count.fetch_add(1, Ordering::Relaxed);
+                            }
+
+                            let current = completed.fetch_add(1, Ordering::Relaxed) + 1;
+                            let _ = tx.send(InstallerEvent::Progress {
+                                current,
+                                total,
+                                item: task.filename,
+                            });
+                        }
+                    });
+
+                if let Ok(h) = handle {
+                    worker_handles.push(h);
                 }
             }
 
-            // Copy file if not exists or different size
-            let mut need_copy = true;
-            if dest_rom_path.exists() {
-                if let (Ok(src_meta), Ok(dest_meta)) = (src_path.metadata(), dest_rom_path.metadata()) {
-                    if src_meta.len() == dest_meta.len() {
-                        need_copy = false;
-                    }
-                }
+            for handle in worker_handles {
+                let _ = handle.join();
             }
 
-            if need_copy {
-                match fs::copy(src_path, &dest_rom_path) {
-                    Ok(bytes) => {
-                        summary.total_roms_copied += 1;
-                        summary.total_bytes_copied += bytes;
-                    }
-                    Err(e) => {
-                        let err_msg = format!("Failed to copy {}: {}", filename, e);
-                        let _ = tx.send(InstallerEvent::Log(err_msg.clone()));
-                        summary.errors.push(err_msg);
-                    }
-                }
+            summary.total_roms_copied = copy_roms_count.load(Ordering::Relaxed);
+            summary.total_bytes_copied = copy_bytes_count.load(Ordering::Relaxed);
+            if let Ok(mut errs) = copy_errors.lock() {
+                summary.errors.append(&mut *errs);
+            }
+
+            let mb_copied = summary.total_bytes_copied as f64 / (1024.0 * 1024.0);
+            let _ = tx.send(InstallerEvent::Log(format!(
+                "✓ Phase 1 Complete: {} primary ROMs transferred ({:.2} MB transferred).",
+                summary.total_roms_copied, mb_copied
+            )));
+        }
+
+        if cancel_flag.load(Ordering::Relaxed) {
+            let _ = tx.send(InstallerEvent::Failed("Operation cancelled by user.".to_string()));
+            return;
+        }
+
+        // ====================================================================
+        // PHASE 2: HIGH-SPEED PARALLEL ARTWORK SCRAPING & SYNC
+        // ====================================================================
+        if config.download_art && config.execution_mode != InstallerExecutionMode::RomsOnly && !art_tasks.is_empty() {
+            let num_art_workers = config.art_threads.clamp(1, 16);
+            let total_art_items = art_tasks.len();
+            let subfolder_name = if config.art_subfolder_name.trim().is_empty() {
+                "Imgs".to_string()
             } else {
-                summary.total_roms_copied += 1;
-            }
+                config.art_subfolder_name.trim().to_string()
+            };
 
-            // Also copy all companion tracks (audio tracks, bin files, subchannel files)
-            let companions = get_companion_files(src_path);
-            for comp_path in &companions {
-                if let Some(comp_filename) = comp_path.file_name().and_then(|s| s.to_str()) {
-                    let dest_comp_path = profile.get_rom_destination(
-                        &config.destination_path,
-                        platform,
-                        comp_filename,
-                    );
-                    if let Some(parent) = dest_comp_path.parent() {
-                        if !parent.exists() {
-                            let _ = fs::create_dir_all(parent);
-                        }
-                    }
-                    let mut need_comp_copy = true;
-                    if dest_comp_path.exists() {
-                        if let (Ok(s_m), Ok(d_m)) = (comp_path.metadata(), dest_comp_path.metadata()) {
-                            if s_m.len() == d_m.len() {
-                                need_comp_copy = false;
+            let _ = tx.send(InstallerEvent::Phase(format!(
+                "Phase 2/2: Syncing Boxart ({}, {} workers)...",
+                config.art_location_mode.label(),
+                num_art_workers
+            )));
+            let _ = tx.send(InstallerEvent::Log(format!(
+                "🎨 Starting parallel boxart sync for {} games to {} ({} threads)...",
+                total_art_items,
+                config.art_location_mode.label(),
+                num_art_workers
+            )));
+
+            let art_queue = Arc::new(Mutex::new(VecDeque::from(art_tasks)));
+            let art_completed = Arc::new(AtomicUsize::new(0));
+            let art_downloaded_count = Arc::new(AtomicUsize::new(0));
+            let scraper = Arc::new(ArtScraper::new());
+
+            let mut art_handles = Vec::new();
+            for worker_id in 0..num_art_workers {
+                let queue = art_queue.clone();
+                let cancel = cancel_flag.clone();
+                let tx = tx.clone();
+                let completed = art_completed.clone();
+                let downloaded_count = art_downloaded_count.clone();
+                let scraper = scraper.clone();
+                let subfolder = subfolder_name.clone();
+                let location_mode = config.art_location_mode;
+                let total = total_art_items;
+
+                let handle = thread::Builder::new()
+                    .name(format!("art-worker-{}", worker_id))
+                    .spawn(move || {
+                        loop {
+                            if cancel.load(Ordering::Relaxed) {
+                                break;
                             }
-                        }
-                    }
-                    if need_comp_copy {
-                        match fs::copy(comp_path, &dest_comp_path) {
-                            Ok(bytes) => {
-                                summary.total_bytes_copied += bytes;
+                            let item = {
+                                let mut lock = match queue.lock() {
+                                    Ok(l) => l,
+                                    Err(e) => e.into_inner(),
+                                };
+                                lock.pop_front()
+                            };
+                            let Some(task) = item else {
+                                break;
+                            };
+
+                            let source_art_dir = task.source_dir.join(&subfolder);
+                            let temp_cache_dir = ArtScraper::get_temp_art_cache_dir(task.platform.id);
+
+                            // 1. Look for existing local artwork first (instant, 0 network calls!)
+                            let local_found = ArtScraper::find_existing_local_art(&source_art_dir, &task.stem)
+                                .or_else(|| ArtScraper::find_existing_local_art(&temp_cache_dir, &task.stem));
+
+                            if let Some(local_path) = local_found {
+                                // If found in temp cache and mode is RomSourceSubfolder, save to source subfolder too
+                                if location_mode == ArtLocationMode::RomSourceSubfolder && !local_path.starts_with(&source_art_dir) {
+                                    let _ = fs::create_dir_all(&source_art_dir);
+                                    let target_sub = source_art_dir.join(format!("{}.png", task.stem));
+                                    let _ = fs::copy(&local_path, &target_sub);
+                                }
+
+                                // Copy to SD card destination if specified
+                                if let Some(ref dest_art) = task.dest_art_path {
+                                    if let Some(parent) = dest_art.parent() {
+                                        let _ = fs::create_dir_all(parent);
+                                    }
+                                    let mut need_copy = true;
+                                    if dest_art.exists() {
+                                        if let (Ok(s), Ok(d)) = (local_path.metadata(), dest_art.metadata()) {
+                                            if s.len() == d.len() {
+                                                need_copy = false;
+                                            }
+                                        }
+                                    }
+                                    if need_copy {
+                                        let _ = fs::copy(&local_path, dest_art);
+                                    }
+                                }
+                                downloaded_count.fetch_add(1, Ordering::Relaxed);
+                            } else {
+                                // 2. Not found locally: Download from Libretro CDN
+                                let primary_save_target = match location_mode {
+                                    ArtLocationMode::RomSourceSubfolder => {
+                                        let _ = fs::create_dir_all(&source_art_dir);
+                                        source_art_dir.join(format!("{}.png", task.stem))
+                                    }
+                                    ArtLocationMode::TempCacheFolder => {
+                                        let _ = fs::create_dir_all(&temp_cache_dir);
+                                        temp_cache_dir.join(format!("{}.png", task.stem))
+                                    }
+                                    ArtLocationMode::TargetDriveOnly => {
+                                        if let Some(ref dest) = task.dest_art_path {
+                                            dest.clone()
+                                        } else {
+                                            let _ = fs::create_dir_all(&temp_cache_dir);
+                                            temp_cache_dir.join(format!("{}.png", task.stem))
+                                        }
+                                    }
+                                };
+
+                                match scraper.download_boxart(&task.platform, &task.filename, &primary_save_target) {
+                                    Ok(true) => {
+                                        downloaded_count.fetch_add(1, Ordering::Relaxed);
+                                        let _ = tx.send(InstallerEvent::Log(format!(
+                                            "[ART] Downloaded cover for '{}' -> {}",
+                                            task.stem,
+                                            location_mode.label()
+                                        )));
+
+                                        // If stored in source subfolder or cache, also copy to SD destination
+                                        if location_mode != ArtLocationMode::TargetDriveOnly {
+                                            if let Some(ref dest_art) = task.dest_art_path {
+                                                if let Some(parent) = dest_art.parent() {
+                                                    let _ = fs::create_dir_all(parent);
+                                                }
+                                                let _ = fs::copy(&primary_save_target, dest_art);
+                                            }
+                                        }
+                                    }
+                                    Ok(false) => {
+                                        // Already present
+                                        downloaded_count.fetch_add(1, Ordering::Relaxed);
+                                    }
+                                    Err(_) => {
+                                        // Boxart missing on CDN, non-fatal
+                                    }
+                                }
                             }
-                            Err(e) => {
-                                let err_msg = format!("Failed to copy companion file {}: {}", comp_filename, e);
-                                let _ = tx.send(InstallerEvent::Log(err_msg.clone()));
-                                summary.errors.push(err_msg);
-                            }
+
+                            let current = completed.fetch_add(1, Ordering::Relaxed) + 1;
+                            let _ = tx.send(InstallerEvent::Progress {
+                                current,
+                                total,
+                                item: format!("Cover: {}", task.stem),
+                            });
                         }
-                    }
+                    });
+
+                if let Ok(h) = handle {
+                    art_handles.push(h);
                 }
             }
-            if !companions.is_empty() {
-                let _ = tx.send(InstallerEvent::Log(format!(
-                    "[{}] Transferred '{}' + {} companion audio/data track(s)",
-                    platform.id.to_uppercase(),
-                    filename,
-                    companions.len()
-                )));
+
+            for handle in art_handles {
+                let _ = handle.join();
             }
 
-            // Artwork processing
-            if config.download_art {
-                let stem = Path::new(filename)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or(filename);
-
-                let art_dest = profile.get_art_destination(
-                    &config.destination_path,
-                    platform,
-                    stem,
-                );
-
-                if !art_dest.exists() {
-                    match scraper.download_boxart(platform, filename, &art_dest) {
-                        Ok(true) => {
-                            summary.total_art_downloaded += 1;
-                            let _ = tx.send(InstallerEvent::Log(format!(
-                                "Downloaded art for: {}",
-                                stem
-                            )));
-                        }
-                        Ok(false) => {}
-                        Err(_) => {
-                            // Non-critical, just keep going
-                        }
-                    }
-                }
-            }
+            summary.total_art_downloaded = art_downloaded_count.load(Ordering::Relaxed);
+            let _ = tx.send(InstallerEvent::Log(format!(
+                "✓ Phase 2 Complete: {} boxart covers downloaded/synced.",
+                summary.total_art_downloaded
+            )));
         }
 
         // 5. Special Frontend Additions (e.g. Pegasus metadata template)
-        if config.profile_id == ProfileId::Pegasus {
+        if config.profile_id == ProfileId::Pegasus && config.execution_mode != InstallerExecutionMode::ArtOnly {
             let pegasus_meta = config.destination_path.join("metadata.pegasus.txt");
             if !pegasus_meta.exists() {
                 let _ = fs::write(

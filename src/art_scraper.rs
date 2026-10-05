@@ -1,10 +1,11 @@
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use regex::Regex;
 use reqwest::blocking::Client;
 use crate::platforms::PlatformInfo;
 
+#[derive(Clone)]
 pub struct ArtScraper {
     client: Client,
 }
@@ -18,6 +19,54 @@ impl ArtScraper {
             .unwrap_or_else(|_| Client::new());
 
         Self { client }
+    }
+
+    /// Returns the application temporary cache directory for a given platform
+    pub fn get_temp_art_cache_dir(platform_id: &str) -> PathBuf {
+        std::env::temp_dir()
+            .join("retro-cardmaker")
+            .join("art_cache")
+            .join(platform_id)
+    }
+
+    /// Looks for existing local artwork in a directory matching standard extensions and stem variants
+    pub fn find_existing_local_art(dir: &Path, stem: &str) -> Option<PathBuf> {
+        if !dir.exists() {
+            return None;
+        }
+
+        let extensions = ["png", "jpg", "jpeg", "webp", "PNG", "JPG"];
+
+        // 1. Direct stem match
+        for ext in &extensions {
+            let candidate = dir.join(format!("{}.{}", stem, ext));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+
+        // 2. Normalized stem match
+        let normalized = Self::normalize_for_libretro(stem);
+        if normalized != stem {
+            for ext in &extensions {
+                let candidate = dir.join(format!("{}.{}", normalized, ext));
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+
+        // 3. Fallback names match
+        for fallback in Self::generate_fallback_names(&normalized) {
+            for ext in &extensions {
+                let candidate = dir.join(format!("{}.{}", fallback, ext));
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+
+        None
     }
 
     /// Normalizes ROM file stem according to Libretro thumbnail naming guidelines
