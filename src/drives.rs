@@ -203,6 +203,10 @@ pub fn format_drive(
         }
     }
 
+    if !is_elevated() {
+        return Err("PRIVILEGE ERROR: Windows Administrator privileges required to format storage drives. Please run Retro CardMaker as Administrator.".to_string());
+    }
+
     let letter_char = clean_letter.chars().next().ok_or("Invalid drive letter")?;
     let target = format!("{}:", letter_char.to_ascii_uppercase());
     let fs_str = fs.as_str();
@@ -289,6 +293,10 @@ pub fn wipe_and_repartition_drive(
         return Err("SAFETY VIOLATION: Drive is flagged as a Windows System disk. Aborting!".to_string());
     }
 
+    if !is_elevated() {
+        return Err("PRIVILEGE ERROR: Windows Administrator privileges required to clean and repartition drives using diskpart. Please run Retro CardMaker as Administrator.".to_string());
+    }
+
     let disk_num = drive.disk_number.ok_or_else(|| {
         format!("Could not determine physical disk number for drive {}.", clean_letter)
     })?;
@@ -358,5 +366,44 @@ pub fn ensure_directory_exists(path: &Path) -> std::io::Result<()> {
     if !path.exists() {
         std::fs::create_dir_all(path)?;
     }
+    Ok(())
+}
+
+/// Checks if the current process is running with Windows Administrator privileges (elevated token)
+#[cfg(target_os = "windows")]
+pub fn is_elevated() -> bool {
+    #[link(name = "shell32")]
+    unsafe extern "system" {
+        fn IsUserAnAdmin() -> i32;
+    }
+    unsafe { IsUserAnAdmin() != 0 }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn is_elevated() -> bool {
+    true
+}
+
+/// Relaunches the current application executable as an elevated process via Windows UAC
+#[cfg(target_os = "windows")]
+pub fn relaunch_as_admin() -> Result<(), String> {
+    let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let status = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            &format!("Start-Process -FilePath '{}' -Verb RunAs", current_exe.display()),
+        ])
+        .status()
+        .map_err(|e| e.to_string())?;
+    if status.success() {
+        std::process::exit(0);
+    } else {
+        Err("UAC Elevation request was cancelled or denied.".to_string())
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn relaunch_as_admin() -> Result<(), String> {
     Ok(())
 }

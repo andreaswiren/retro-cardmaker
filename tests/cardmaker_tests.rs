@@ -214,3 +214,101 @@ fn test_user_requested_platform_aliases() {
     let wii = find_platform_by_dir_name("nintendo wii").expect("nintendo wii should resolve to wii");
     assert_eq!(wii.id, "wii");
 }
+
+#[test]
+fn test_font_loading() {
+    let segoe_path = std::path::Path::new("C:\\Windows\\Fonts\\segoeui.ttf");
+    if segoe_path.exists() {
+        let mut fonts = eframe::egui::FontDefinitions::default();
+        let data = std::fs::read(segoe_path).unwrap();
+        fonts.font_data.insert("SegoeUI".to_owned(), std::sync::Arc::new(eframe::egui::FontData::from_owned(data)));
+        fonts.families.entry(eframe::egui::FontFamily::Proportional).or_default().insert(0, "SegoeUI".to_owned());
+
+        let emoji_path = std::path::Path::new("C:\\Windows\\Fonts\\seguiemj.ttf");
+        if emoji_path.exists() {
+            if let Ok(edata) = std::fs::read(emoji_path) {
+                fonts.font_data.insert("SegoeUIEmoji".to_owned(), std::sync::Arc::new(eframe::egui::FontData::from_owned(edata)));
+                fonts.families.entry(eframe::egui::FontFamily::Proportional).or_default().push("SegoeUIEmoji".to_owned());
+            }
+        }
+
+        let ctx = eframe::egui::Context::default();
+        ctx.set_fonts(fonts);
+        let mut out = ctx.run_ui(Default::default(), |ui| {
+            ui.label("🎮 Retro CardMaker 🚀 ⭐ 🛡️");
+        });
+        out.textures_delta.clear();
+    }
+}
+
+#[test]
+fn test_playstation_multifile_and_audio_track_filtering() {
+    use retro_cardmaker::platforms::filter_primary_rom_files;
+
+    let files = vec![
+        "Crash Bandicoot (USA).cue".to_string(),
+        "Crash Bandicoot (USA) (Track 1).bin".to_string(),
+        "Crash Bandicoot (USA) (Track 2).bin".to_string(),
+        "Ridge Racer (USA).cue".to_string(),
+        "Ridge Racer (USA) (Track 1).bin".to_string(),
+        "Ridge Racer (USA) (Track 2).wav".to_string(),
+        "Ridge Racer (USA) (Track 3).flac".to_string(),
+        "Tekken 3 (USA).chd".to_string(),
+        "Castlevania - Symphony of the Night (USA).pbp".to_string(),
+        "Spyro the Dragon (USA).bin".to_string(), // standalone orphan bin
+        "Final Fantasy VII.m3u".to_string(),
+    ];
+
+    let filtered = filter_primary_rom_files("psx", &files);
+
+    // Primary games must be retained:
+    assert!(filtered.contains(&"Crash Bandicoot (USA).cue".to_string()));
+    assert!(filtered.contains(&"Ridge Racer (USA).cue".to_string()));
+    assert!(filtered.contains(&"Tekken 3 (USA).chd".to_string()));
+    assert!(filtered.contains(&"Castlevania - Symphony of the Night (USA).pbp".to_string()));
+    assert!(filtered.contains(&"Spyro the Dragon (USA).bin".to_string()));
+    assert!(filtered.contains(&"Final Fantasy VII.m3u".to_string()));
+
+    // Secondary data and audio tracks must be filtered out:
+    assert!(!filtered.contains(&"Crash Bandicoot (USA) (Track 1).bin".to_string()));
+    assert!(!filtered.contains(&"Crash Bandicoot (USA) (Track 2).bin".to_string()));
+    assert!(!filtered.contains(&"Ridge Racer (USA) (Track 1).bin".to_string()));
+    assert!(!filtered.contains(&"Ridge Racer (USA) (Track 2).wav".to_string()));
+    assert!(!filtered.contains(&"Ridge Racer (USA) (Track 3).flac".to_string()));
+}
+
+#[test]
+fn test_playstation_companion_files_resolution() {
+    use retro_cardmaker::platforms::get_companion_files;
+    use std::fs;
+
+    let temp_dir = std::env::temp_dir().join(format!("test_psx_roms_{}", std::process::id()));
+    let _ = fs::create_dir_all(&temp_dir);
+
+    let cue_path = temp_dir.join("Tomb Raider (USA).cue");
+    let track1 = temp_dir.join("Tomb Raider (USA) (Track 1).bin");
+    let track2 = temp_dir.join("Tomb Raider (USA) (Track 2).bin");
+    let audio3 = temp_dir.join("Tomb Raider (USA) (Track 3).wav");
+
+    let cue_content = "FILE \"Tomb Raider (USA) (Track 1).bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\nFILE \"Tomb Raider (USA) (Track 2).bin\" BINARY\n  TRACK 02 AUDIO\n    INDEX 01 00:00:00\n";
+    fs::write(&cue_path, cue_content).unwrap();
+    fs::write(&track1, b"data1").unwrap();
+    fs::write(&track2, b"data2").unwrap();
+    fs::write(&audio3, b"audio3").unwrap();
+
+    let companions = get_companion_files(&cue_path);
+
+    assert!(companions.contains(&track1));
+    assert!(companions.contains(&track2));
+    assert!(companions.contains(&audio3));
+
+    let _ = fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_privilege_check_elevation() {
+    use retro_cardmaker::drives::is_elevated;
+    let elevated = is_elevated();
+    println!("Process elevation check: {}", elevated);
+}
+

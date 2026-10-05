@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] - 2026-10-05
+
+### Added
+- **PlayStation Multi-File & Audio Track Engine**:
+  - Automatically identifies and handles multi-file CD-ROM titles (`.cue`, multi-disc `.m3u`, `.gdi`).
+  - Supports all companion audio track formats (`.wav`, `.flac`, `.mp3`, `.ogg`, `.ape`, `.sub`, `.raw`) and multi-track `.bin` files.
+  - Automatically hides companion tracks from the games selection list to keep the UI clean, while ensuring 100% of audio and secondary data tracks are copied to target SD cards.
+- **Windows Administrator Elevation & Safeguards**:
+  - Added Windows UAC administrator elevation checks (`IsUserAnAdmin`).
+  - Interactive amber elevation banner with `🛡️ Relaunch as Admin` one-click elevation button.
+  - Elevation pre-flight checks enforcing admin privileges before any low-level disk formatting or `diskpart` repartitioning can be triggered.
+- **Enhanced Window Inset Padding**:
+  - Inset entire application window layout with 14px horizontal and 10px vertical margins, ensuring controls and cards do not touch window edges.
+- **Typography & Font Rendering Elevation**:
+  - Integrated ClearType-rendered Segoe UI font stack (`Segoe UI`, `Segoe UI Variable`, `Segoe UI Emoji`, `Segoe UI Symbol`) for crisp, anti-aliased text rendering across all UI elements.
+- **Terminal Console Vector Status Lights**:
+  - Implemented crisp vector-rendered macOS-style terminal window dots (red, yellow, green) for high-DPI crispness.
+
 ## [0.2.3] - 2026-10-02
 
 ### Added

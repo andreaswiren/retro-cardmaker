@@ -7,14 +7,14 @@ use walkdir::WalkDir;
 
 use eframe::egui::{self, Color32, Margin, RichText, ScrollArea, Stroke, Vec2};
 
-use crate::drives::{get_available_drives, DriveInfo, FormatFileSystem};
+use crate::drives::{get_available_drives, is_elevated, relaunch_as_admin, DriveInfo, FormatFileSystem};
 use crate::favorites::{load_favorites, save_favorites, FavoritesList};
 use crate::installer::{
     CopyMode, InstallConfig, InstallSummary, InstallerEngine, InstallerEvent,
     PlatformInstallConfig,
 };
 use crate::launcher_profiles::{LauncherProfile, ProfileId, PROFILES};
-use crate::platforms::{find_platform_by_dir_name, PlatformInfo, PLATFORMS};
+use crate::platforms::{filter_primary_rom_files, find_platform_by_dir_name, PlatformInfo, PLATFORMS};
 
 #[derive(Clone)]
 pub struct PlatformUiState {
@@ -37,6 +37,80 @@ pub enum ActiveTab {
     Platforms,
     Artwork,
     Install,
+}
+
+// ----------------------------------------------------------------------------
+// Custom Fonts & ClearType Windows 11 Anti-Aliasing Setup
+// ----------------------------------------------------------------------------
+
+pub fn setup_custom_fonts(ctx: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+
+    #[cfg(windows)]
+    {
+        let font_dir = std::path::Path::new("C:\\Windows\\Fonts");
+
+        // 1. Primary Proportional Font: Segoe UI (Clean, clear anti-aliasing on Windows)
+        let segoe_path = font_dir.join("segoeui.ttf");
+        if segoe_path.exists() {
+            if let Ok(data) = std::fs::read(&segoe_path) {
+                fonts.font_data.insert(
+                    "SegoeUI".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(data)),
+                );
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .insert(0, "SegoeUI".to_owned());
+            }
+        }
+
+        // 2. Bold variant: Segoe UI Bold
+        let segoe_bold = font_dir.join("segoeuib.ttf");
+        if segoe_bold.exists() {
+            if let Ok(data) = std::fs::read(&segoe_bold) {
+                fonts.font_data.insert(
+                    "SegoeUI-Bold".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(data)),
+                );
+            }
+        }
+
+        // 3. Emoji & Symbol Font: Segoe UI Emoji
+        let emoji_path = font_dir.join("seguiemj.ttf");
+        if emoji_path.exists() {
+            if let Ok(data) = std::fs::read(&emoji_path) {
+                fonts.font_data.insert(
+                    "SegoeUIEmoji".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(data)),
+                );
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .push("SegoeUIEmoji".to_owned());
+            }
+        }
+
+        // 4. Windows 11 Fluent Icons / Segoe MDL2 Assets
+        let mdl2_path = font_dir.join("segmdl2.ttf");
+        if mdl2_path.exists() {
+            if let Ok(data) = std::fs::read(&mdl2_path) {
+                fonts.font_data.insert(
+                    "SegoeMDL2".to_owned(),
+                    std::sync::Arc::new(egui::FontData::from_owned(data)),
+                );
+                fonts
+                    .families
+                    .entry(egui::FontFamily::Proportional)
+                    .or_default()
+                    .push("SegoeMDL2".to_owned());
+            }
+        }
+    }
+
+    ctx.set_fonts(fonts);
 }
 
 // ----------------------------------------------------------------------------
@@ -74,10 +148,10 @@ fn render_badge(ui: &mut egui::Ui, text: &str, bg: Color32, border: Color32, fg:
         .fill(bg)
         .stroke(Stroke::new(1.0, border))
         .corner_radius(12)
-        .inner_margin(Margin::symmetric(6, 2))
+        .inner_margin(Margin::symmetric(8, 3))
         .show(ui, |ui| {
             ui.add(
-                egui::Label::new(RichText::new(text).size(10.0).color(fg).strong())
+                egui::Label::new(RichText::new(text).size(11.5).color(fg).strong())
                     .wrap_mode(egui::TextWrapMode::Extend),
             );
         });
@@ -86,7 +160,7 @@ fn render_badge(ui: &mut egui::Ui, text: &str, bg: Color32, border: Color32, fg:
 fn pattern_chip(ui: &mut egui::Ui, tag: &str) -> bool {
     let btn = egui::Button::new(
         RichText::new(format!("{}  ×", tag))
-            .size(10.0)
+            .size(11.5)
             .strong()
             .color(Color32::from_rgb(0, 229, 255)),
     )
@@ -151,15 +225,15 @@ fn badge_red(ui: &mut egui::Ui, text: &str) {
 
 fn render_card_header(ui: &mut egui::Ui, title: &str, badge_fn: impl FnOnce(&mut egui::Ui)) {
     ui.horizontal(|ui| {
-        ui.label(RichText::new(title).size(12.5).strong().color(Color32::WHITE));
+        ui.label(RichText::new(title).size(14.5).strong().color(Color32::WHITE));
         let avail = (ui.available_width() - 8.0).max(10.0);
-        ui.allocate_ui(Vec2::new(avail, 20.0), |ui| {
+        ui.allocate_ui(Vec2::new(avail, 24.0), |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 badge_fn(ui);
             });
         });
     });
-    ui.add_space(2.0);
+    ui.add_space(3.0);
     ui.separator();
     ui.add_space(6.0);
 }
@@ -199,16 +273,16 @@ pub fn toggle_switch(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 // Glowing Sleek Neon Cyan Progress Bar
 fn render_neon_progress_bar(ui: &mut egui::Ui, label: &str, fraction: f32, extra_text: &str) {
     ui.horizontal(|ui| {
-        ui.label(RichText::new(label).size(10.5).strong().color(Color32::from_gray(200)));
+        ui.label(RichText::new(label).size(12.5).strong().color(Color32::from_gray(210)));
         let avail = (ui.available_width() - 8.0).max(10.0);
-        ui.allocate_ui(Vec2::new(avail, 16.0), |ui| {
+        ui.allocate_ui(Vec2::new(avail, 20.0), |ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(RichText::new(extra_text).size(10.5).strong().color(Color32::from_rgb(0, 229, 255)));
+                ui.label(RichText::new(extra_text).size(12.0).strong().color(Color32::from_rgb(0, 229, 255)));
             });
         });
     });
-    ui.add_space(2.0);
-    let height = 12.0;
+    ui.add_space(3.0);
+    let height = 14.0;
     let width = ui.available_width();
     let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), egui::Sense::hover());
     if ui.is_rect_visible(rect) {
@@ -221,14 +295,14 @@ fn render_neon_progress_bar(ui: &mut egui::Ui, label: &str, fraction: f32, extra
             ui.painter().rect_filled(fill_rect, radius, Color32::from_rgb(0, 229, 255));
         }
     }
-    ui.add_space(5.0);
+    ui.add_space(6.0);
 }
 
 // Real Button widget with vibrant cyan border and hover styling
 fn curated_favorites_button(ui: &mut egui::Ui) -> bool {
     let btn = egui::Button::new(
         RichText::new("⭐ Curate Favorites")
-            .size(10.0)
+            .size(11.5)
             .strong()
             .color(Color32::from_rgb(0, 229, 255)),
     )
@@ -392,6 +466,18 @@ impl RetroCardMakerApp {
             frame_count: 0,
         };
 
+        // Apply Windows 11 Fluent Segoe UI & Emoji Fonts with ClearType Anti-Aliasing
+        setup_custom_fonts(&_cc.egui_ctx);
+
+        let mut style = (*_cc.egui_ctx.style_of(egui::Theme::Dark)).clone();
+        style.text_styles = [
+            (egui::TextStyle::Heading, egui::FontId::new(18.0, egui::FontFamily::Proportional)),
+            (egui::TextStyle::Body, egui::FontId::new(13.5, egui::FontFamily::Proportional)),
+            (egui::TextStyle::Monospace, egui::FontId::new(12.5, egui::FontFamily::Monospace)),
+            (egui::TextStyle::Button, egui::FontId::new(13.0, egui::FontFamily::Proportional)),
+            (egui::TextStyle::Small, egui::FontId::new(11.5, egui::FontFamily::Proportional)),
+        ].into();
+
         // Apply Refined Compact Desktop AAA Dark Theme
         let mut visuals = egui::Visuals::dark();
         visuals.panel_fill = Color32::from_rgb(9, 12, 16);
@@ -405,7 +491,10 @@ impl RetroCardMakerApp {
         visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, Color32::from_rgb(0, 229, 255));
         visuals.widgets.active.bg_fill = Color32::from_rgb(30, 42, 60);
         visuals.selection.bg_fill = Color32::from_rgb(0, 160, 210);
-        _cc.egui_ctx.set_visuals(visuals);
+        style.visuals = visuals;
+
+        _cc.egui_ctx.set_style_of(egui::Theme::Dark, style.clone());
+        _cc.egui_ctx.set_style_of(egui::Theme::Light, style);
 
         // Auto-select first removable drive
         if let Some(pos) = app.drives.iter().position(|d| d.is_removable) {
@@ -494,6 +583,7 @@ impl RetroCardMakerApp {
                 p_state.found_dir = Some(candidate.clone());
                 p_state.favorites = load_favorites(&candidate);
 
+                let mut raw_files = Vec::new();
                 for entry in WalkDir::new(&candidate)
                     .max_depth(3)
                     .into_iter()
@@ -509,11 +599,12 @@ impl RetroCardMakerApp {
                                 .iter()
                                 .any(|&ext| lower.ends_with(ext))
                             {
-                                p_state.rom_files.push(name.to_string());
+                                raw_files.push(name.to_string());
                             }
                         }
                     }
                 }
+                p_state.rom_files = filter_primary_rom_files(p_state.platform.id, &raw_files);
                 p_state.rom_files.sort();
                 p_state.rom_files.dedup();
             }
@@ -571,6 +662,10 @@ impl RetroCardMakerApp {
         }
         if self.do_format && !drive.is_removable {
             self.install_error = Some("Safety violation: Formatting is strictly restricted to removable USB and SD-card drives.".to_string());
+            return;
+        }
+        if self.do_format && !is_elevated() {
+            self.install_error = Some("Administrator privileges required to format. Please relaunch as Administrator.".to_string());
             return;
         }
 
@@ -713,32 +808,37 @@ impl eframe::App for RetroCardMakerApp {
             }
         }
 
-        // 1. Top Windows 11 App Header with Real Styled Tab Buttons
-        self.render_top_header(ui);
-
-        // 2. 5-Step Chevron Ribbon with Real Buttons
-        self.render_step_ribbon(ui);
-
-        ui.add_space(6.0);
-
-        // 3. Main Workspace Area
-        ScrollArea::vertical()
-            .id_salt("main_workspace_scroll")
-            .auto_shrink([false; 2])
+        // 1. Padded Application Window Container
+        egui::Frame::new()
+            .inner_margin(Margin::symmetric(14, 10))
             .show(ui, |ui| {
-                match self.active_tab {
-                    ActiveTab::Dashboard => self.render_dashboard_cockpit(ui),
-                    ActiveTab::Consoles | ActiveTab::Platforms => self.render_consoles_tab_view(ui),
-                    ActiveTab::Favorites => self.render_favorites_tab_view(ui),
-                    ActiveTab::Settings => self.render_settings_tab_view(ui),
-                    ActiveTab::SdCard => self.render_dashboard_cockpit(ui),
-                    ActiveTab::Profile => self.render_dashboard_cockpit(ui),
-                    ActiveTab::Artwork => self.render_dashboard_cockpit(ui),
-                    ActiveTab::Install => self.render_dashboard_cockpit(ui),
-                }
+                // Top Windows 11 App Header with Real Styled Tab Buttons
+                self.render_top_header(ui);
+
+                // 5-Step Chevron Ribbon with Real Buttons
+                self.render_step_ribbon(ui);
+
+                ui.add_space(6.0);
+
+                // Main Workspace Area
+                ScrollArea::vertical()
+                    .id_salt("main_workspace_scroll")
+                    .auto_shrink([false; 2])
+                    .show(ui, |ui| {
+                        match self.active_tab {
+                            ActiveTab::Dashboard => self.render_dashboard_cockpit(ui),
+                            ActiveTab::Consoles | ActiveTab::Platforms => self.render_consoles_tab_view(ui),
+                            ActiveTab::Favorites => self.render_favorites_tab_view(ui),
+                            ActiveTab::Settings => self.render_settings_tab_view(ui),
+                            ActiveTab::SdCard => self.render_dashboard_cockpit(ui),
+                            ActiveTab::Profile => self.render_dashboard_cockpit(ui),
+                            ActiveTab::Artwork => self.render_dashboard_cockpit(ui),
+                            ActiveTab::Install => self.render_dashboard_cockpit(ui),
+                        }
+                    });
             });
 
-        // 4. Curated Favorites Modal Dialog
+        // 2. Curated Favorites Modal Dialog
         self.render_favorites_modal(ui);
     }
 }
@@ -756,15 +856,15 @@ impl RetroCardMakerApp {
                 egui::Frame::new()
                     .fill(Color32::from_rgb(0, 160, 210))
                     .corner_radius(6)
-                    .inner_margin(Margin::symmetric(6, 4))
+                    .inner_margin(Margin::symmetric(7, 5))
                     .show(ui, |ui| {
-                        ui.label(RichText::new("🎮").size(14.0).color(Color32::WHITE));
+                        ui.label(RichText::new("🎮").size(16.0).color(Color32::WHITE));
                     });
                 ui.add_space(4.0);
 
                 ui.label(
                     RichText::new("Retro CardMaker")
-                        .size(15.0)
+                        .size(17.0)
                         .strong()
                         .color(Color32::WHITE),
                 );
@@ -774,7 +874,7 @@ impl RetroCardMakerApp {
                     "Windows 11",
                     Color32::from_rgb(18, 24, 34),
                     Color32::from_rgb(45, 58, 78),
-                    Color32::from_gray(180),
+                    Color32::from_gray(190),
                 );
 
                 ui.separator();
@@ -783,7 +883,7 @@ impl RetroCardMakerApp {
                 // Navigation Tabs: Real Interactive Buttons with Hover & Selection States
                 let tabs = [
                     (ActiveTab::Dashboard, "⊞ Dashboard"),
-                    (ActiveTab::Consoles, "🖵 Consoles"),
+                    (ActiveTab::Consoles, "🎮 Consoles"),
                     (ActiveTab::Favorites, "⭐ Favorites"),
                     (ActiveTab::Settings, "⚙ Settings"),
                 ];
@@ -793,7 +893,7 @@ impl RetroCardMakerApp {
                     let text_color = if is_active {
                         Color32::from_rgb(0, 229, 255)
                     } else {
-                        Color32::from_gray(180)
+                        Color32::from_gray(190)
                     };
                     let bg = if is_active {
                         Color32::from_rgb(18, 32, 48)
@@ -809,7 +909,7 @@ impl RetroCardMakerApp {
                         },
                     );
 
-                    let btn = egui::Button::new(RichText::new(title).size(11.0).strong().color(text_color))
+                    let btn = egui::Button::new(RichText::new(title).size(12.5).strong().color(text_color))
                         .fill(bg)
                         .stroke(stroke)
                         .corner_radius(6);
@@ -817,12 +917,12 @@ impl RetroCardMakerApp {
                     if ui.add(btn).clicked() {
                         self.active_tab = tab;
                     }
-                    ui.add_space(2.0);
+                    ui.add_space(3.0);
                 }
 
                 // Right-aligned status pill
                 let avail = (ui.available_width() - 8.0).max(10.0);
-                ui.allocate_ui(Vec2::new(avail, 24.0), |ui| {
+                ui.allocate_ui(Vec2::new(avail, 26.0), |ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let total_favs: usize = self
                             .platform_states
@@ -844,20 +944,20 @@ impl RetroCardMakerApp {
                     });
                 });
             });
-            ui.add_space(4.0);
+            ui.add_space(5.0);
             ui.separator();
         });
     }
 
     fn render_step_ribbon(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(2.0);
+        ui.add_space(3.0);
         ui.columns(5, |cols| {
             let steps = [
-                ("1", "❶ SD CARD & FORMAT", ActiveTab::Dashboard),
-                ("2", "❷ DEVICE PROFILE", ActiveTab::Dashboard),
-                ("3", "❸ ROMS & FAVORITES", ActiveTab::Dashboard),
-                ("4", "❹ BOXART SCRAPING", ActiveTab::Dashboard),
-                ("5", "❺ QUICKINSTALL", ActiveTab::Dashboard),
+                ("1", "1 · 💾 SD CARD & FORMAT", ActiveTab::Dashboard),
+                ("2", "2 · 🎮 DEVICE PROFILE", ActiveTab::Dashboard),
+                ("3", "3 · 📂 ROMS & FAVORITES", ActiveTab::Dashboard),
+                ("4", "4 · 🖼 BOXART SCRAPING", ActiveTab::Dashboard),
+                ("5", "5 · ⚡ QUICKINSTALL", ActiveTab::Dashboard),
             ];
 
             for (i, (_num, title, target_tab)) in steps.iter().enumerate() {
@@ -867,7 +967,7 @@ impl RetroCardMakerApp {
                 let text_color = if is_active {
                     Color32::BLACK
                 } else {
-                    Color32::from_gray(210)
+                    Color32::from_gray(215)
                 };
                 let bg = if is_active {
                     Color32::from_rgb(0, 229, 255)
@@ -883,18 +983,18 @@ impl RetroCardMakerApp {
                     },
                 );
 
-                let btn = egui::Button::new(RichText::new(*title).size(10.5).strong().color(text_color))
+                let btn = egui::Button::new(RichText::new(*title).size(12.0).strong().color(text_color))
                     .fill(bg)
                     .stroke(stroke)
                     .corner_radius(12);
 
-                if col.add_sized([col.available_width(), 28.0], btn).clicked() {
+                if col.add_sized([col.available_width(), 32.0], btn).clicked() {
                     self.wizard_focused_step = i + 1;
                     self.active_tab = *target_tab;
                 }
             }
         });
-        ui.add_space(4.0);
+        ui.add_space(5.0);
         ui.separator();
     }
 }
@@ -939,8 +1039,12 @@ impl RetroCardMakerApp {
             let is_removable = selected_drive.as_ref().map(|d| d.is_removable).unwrap_or(false);
             let is_system = selected_drive.as_ref().map(|d| d.is_system).unwrap_or(false);
             let has_hidden = selected_drive.as_ref().map(|d| d.has_hidden_partitions).unwrap_or(false);
+            let has_admin = is_elevated();
 
             render_card_header(ui, "1. SD Card & Format", |ui| {
+                if has_admin {
+                    badge_green(ui, "🛡️ ADMIN");
+                }
                 if is_removable {
                     badge_cyan(ui, "💾 CONNECTED");
                 } else if is_system {
@@ -953,7 +1057,7 @@ impl RetroCardMakerApp {
             });
 
             // Target drive dropdown combo
-            ui.label(RichText::new("Target Storage Drive:").size(10.5).color(Color32::from_gray(160)));
+            ui.label(RichText::new("Target Storage Drive:").size(12.5).color(Color32::from_gray(180)));
             ui.horizontal(|ui| {
                 let drive_display = if let Some(ref d) = selected_drive {
                     let label_str = if d.label.is_empty() { "NO NAME" } else { &d.label };
@@ -964,8 +1068,8 @@ impl RetroCardMakerApp {
                 };
 
                 egui::ComboBox::from_id_salt("dashboard_drive_combo")
-                    .width((ui.available_width() - 85.0).max(120.0))
-                    .selected_text(RichText::new(&drive_display).size(11.5).strong().color(Color32::WHITE))
+                    .width((ui.available_width() - 95.0).max(140.0))
+                    .selected_text(RichText::new(&drive_display).size(13.0).strong().color(Color32::WHITE))
                     .show_ui(ui, |ui| {
                         for (idx, drive) in self.drives.iter().enumerate() {
                             let label_str = if drive.label.is_empty() { "NO NAME" } else { &drive.label };
@@ -975,7 +1079,7 @@ impl RetroCardMakerApp {
                         }
                     });
 
-                let ref_btn = egui::Button::new(RichText::new("🔄 Refresh").size(10.5).strong())
+                let ref_btn = egui::Button::new(RichText::new("🔄 Refresh").size(12.0).strong())
                     .fill(Color32::from_rgb(20, 28, 40))
                     .stroke(Stroke::new(1.0, Color32::from_rgb(36, 50, 72)))
                     .corner_radius(6);
@@ -991,9 +1095,9 @@ impl RetroCardMakerApp {
                 // Left Subcolumn
                 let left_ui = &mut fcols[0];
                 left_ui.vertical(|ui| {
-                    ui.label(RichText::new("Current file system").size(10.0).color(Color32::from_gray(140)));
+                    ui.label(RichText::new("Current file system").size(12.0).color(Color32::from_gray(160)));
                     let fs_text = selected_drive.as_ref().map(|d| d.file_system.as_str()).unwrap_or("Unknown");
-                    ui.label(RichText::new(fs_text).size(14.0).strong().color(Color32::WHITE));
+                    ui.label(RichText::new(fs_text).size(15.0).strong().color(Color32::WHITE));
                     ui.add_space(4.0);
 
                     // Safety Lock Badge
@@ -1001,9 +1105,9 @@ impl RetroCardMakerApp {
                         .fill(Color32::from_rgb(0, 32, 42))
                         .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
                         .corner_radius(12)
-                        .inner_margin(Margin::symmetric(8, 4))
+                        .inner_margin(Margin::symmetric(10, 4))
                         .show(ui, |ui| {
-                            ui.label(RichText::new("🛡️ SAFETY LOCK").size(10.0).strong().color(Color32::from_rgb(0, 229, 255)));
+                            ui.label(RichText::new("🛡️ SAFETY LOCK").size(11.5).strong().color(Color32::from_rgb(0, 229, 255)));
                         });
                 });
 
@@ -1015,7 +1119,7 @@ impl RetroCardMakerApp {
                     } else {
                         // Format as FAT32
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("Format as FAT32").size(11.0).color(Color32::from_gray(210)));
+                            ui.label(RichText::new("Format as FAT32").size(13.0).color(Color32::from_gray(220)));
                             let mut fat32_on = self.do_format && self.format_fs == FormatFileSystem::Fat32;
                             if toggle_switch(ui, &mut fat32_on).changed() {
                                 if fat32_on {
@@ -1031,7 +1135,7 @@ impl RetroCardMakerApp {
 
                         // Format as exFAT
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("Format as exFAT").size(11.0).color(Color32::from_gray(210)));
+                            ui.label(RichText::new("Format as exFAT").size(13.0).color(Color32::from_gray(220)));
                             let mut exfat_on = self.do_format && self.format_fs == FormatFileSystem::ExFat;
                             if toggle_switch(ui, &mut exfat_on).changed() {
                                 if exfat_on {
@@ -1056,30 +1160,51 @@ impl RetroCardMakerApp {
                         .fill(Color32::from_rgb(38, 26, 10))
                         .stroke(Stroke::new(1.0, Color32::from_rgb(245, 158, 11)))
                         .corner_radius(6)
-                        .inner_margin(Margin::same(6))
+                        .inner_margin(Margin::same(8))
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
-                                ui.label(RichText::new("⚠️").size(12.0));
-                                ui.label(RichText::new(format!("Hidden partitions detected: Volume is {} but card is {}.", vol_str, phys_str)).size(10.0).color(Color32::from_rgb(255, 200, 100)));
+                                ui.label(RichText::new("⚠️").size(14.0));
+                                ui.label(RichText::new(format!("Hidden partitions detected: Volume is {} but card is {}.", vol_str, phys_str)).size(12.0).color(Color32::from_rgb(255, 200, 100)));
                             });
                         });
                     ui.add_space(4.0);
                 }
 
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Full Repartition & Clean Wipe (Diskpart MBR)").size(10.5).color(Color32::WHITE));
+                    ui.label(RichText::new("Full Repartition & Clean Wipe (Diskpart MBR)").size(12.5).color(Color32::WHITE));
                     toggle_switch(ui, &mut self.wipe_and_repartition);
                     if has_hidden {
                         badge_amber(ui, "Recommended");
                     }
                 });
 
-                ui.add_space(4.0);
+                ui.add_space(6.0);
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Volume Label:").size(10.5).color(Color32::from_gray(160)));
-                    ui.text_edit_singleline(&mut self.volume_label);
-                    ui.checkbox(&mut self.format_confirmed, RichText::new("Confirm Erase").size(10.0).color(Color32::from_rgb(255, 180, 100)));
+                    ui.label(RichText::new("Volume Label:").size(12.5).color(Color32::from_gray(180)));
+                    ui.add(egui::TextEdit::singleline(&mut self.volume_label).desired_width(120.0));
+                    ui.checkbox(&mut self.format_confirmed, RichText::new("Confirm Erase").size(12.0).color(Color32::from_rgb(255, 180, 100)));
                 });
+
+                if !has_admin {
+                    ui.add_space(6.0);
+                    egui::Frame::new()
+                        .fill(Color32::from_rgb(42, 28, 10))
+                        .stroke(Stroke::new(1.0, Color32::from_rgb(245, 158, 11)))
+                        .corner_radius(6)
+                        .inner_margin(Margin::same(8))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("⚠️").size(14.0));
+                                ui.label(RichText::new("Formatting requires Windows Administrator privileges.").size(12.0).color(Color32::from_rgb(255, 200, 100)));
+                                let el_btn = egui::Button::new(RichText::new("🛡️ Relaunch as Admin").size(11.5).strong().color(Color32::BLACK))
+                                    .fill(Color32::from_rgb(245, 158, 11))
+                                    .corner_radius(4);
+                                if ui.add(el_btn).clicked() {
+                                    let _ = relaunch_as_admin();
+                                }
+                            });
+                        });
+                }
             }
         });
     }
@@ -1094,7 +1219,7 @@ impl RetroCardMakerApp {
                 badge_purple(ui, &format!("🕹️ {}", active_profile.name));
             });
 
-            // Horizontal Profile Cards Grid with Real Buttons
+            // Horizontal Profile Cards Grid with Modern Interactive Cards
             ScrollArea::horizontal()
                 .id_salt("card2_profiles_scroll")
                 .show(ui, |ui| {
@@ -1126,23 +1251,34 @@ impl RetroCardMakerApp {
                             ProfileId::Custom => "CUSTOM",
                         };
 
-                        let radio_icon = if is_sel { "●" } else { "○" };
-                        let label_text = format!("{} {}\n\n{}\n{}/", radio_icon, icon, short_name, profile.recommended_sd_subfolder);
+                        let frame = egui::Frame::new()
+                            .fill(if is_sel { Color32::from_rgb(18, 32, 48) } else { Color32::from_rgb(12, 16, 24) })
+                            .stroke(Stroke::new(if is_sel { 1.5 } else { 1.0 }, if is_sel { Color32::from_rgb(0, 229, 255) } else { Color32::from_rgb(28, 38, 54) }))
+                            .corner_radius(8)
+                            .inner_margin(Margin::symmetric(10, 8));
 
-                        let btn = egui::Button::new(
-                            RichText::new(label_text)
-                                .size(9.5)
-                                .strong()
-                                .color(if is_sel { Color32::WHITE } else { Color32::from_gray(180) }),
-                        )
-                        .fill(if is_sel { Color32::from_rgb(18, 30, 46) } else { Color32::from_rgb(12, 16, 24) })
-                        .stroke(Stroke::new(if is_sel { 1.5 } else { 1.0 }, if is_sel { Color32::from_rgb(0, 229, 255) } else { Color32::from_rgb(28, 38, 54) }))
-                        .corner_radius(8);
+                        let resp = frame.show(ui, |ui| {
+                            ui.set_width(114.0);
+                            ui.set_height(68.0);
+                            ui.vertical(|ui| {
+                                ui.horizontal(|ui| {
+                                    let radio_str = if is_sel { "●" } else { "○" };
+                                    let radio_color = if is_sel { Color32::from_rgb(0, 229, 255) } else { Color32::from_gray(140) };
+                                    ui.label(RichText::new(radio_str).size(12.0).color(radio_color));
+                                    ui.label(RichText::new(icon).size(16.0));
+                                });
+                                ui.add_space(2.0);
+                                ui.label(RichText::new(short_name).size(11.5).strong().color(if is_sel { Color32::WHITE } else { Color32::from_gray(190) }));
+                                ui.label(RichText::new(format!("{}/", profile.recommended_sd_subfolder)).size(11.0).color(if is_sel { Color32::from_rgb(0, 229, 255) } else { Color32::from_gray(130) }));
+                            });
+                        }).response;
 
-                        if ui.add_sized([116.0, 78.0], btn).clicked() {
+                        let id = ui.id().with(format!("prof_{}", profile.name));
+                        if ui.interact(resp.rect, id, egui::Sense::click()).clicked() {
                             self.selected_profile_id = profile.id;
                             self.subfolder_name = profile.recommended_sd_subfolder.to_string();
                         }
+
                         ui.add_space(6.0);
                     }
                 });
@@ -1157,7 +1293,7 @@ impl RetroCardMakerApp {
         card_frame().show(ui, |ui| {
             render_card_header(ui, "3. Consoles Selection", |ui| {
                 ui.horizontal(|ui| {
-                    let all_btn = egui::Button::new(RichText::new("All").size(10.0).strong())
+                    let all_btn = egui::Button::new(RichText::new("All").size(11.5).strong())
                         .fill(Color32::from_rgb(18, 25, 36))
                         .stroke(Stroke::new(1.0, Color32::from_rgb(32, 44, 62)))
                         .corner_radius(4);
@@ -1167,7 +1303,7 @@ impl RetroCardMakerApp {
                         }
                     }
 
-                    let none_btn = egui::Button::new(RichText::new("None").size(10.0).strong())
+                    let none_btn = egui::Button::new(RichText::new("None").size(11.5).strong())
                         .fill(Color32::from_rgb(18, 25, 36))
                         .stroke(Stroke::new(1.0, Color32::from_rgb(32, 44, 62)))
                         .corner_radius(4);
@@ -1182,7 +1318,7 @@ impl RetroCardMakerApp {
             // Scrollable List of detected consoles
             ScrollArea::vertical()
                 .id_salt("card3_platforms_scroll")
-                .max_height(250.0)
+                .max_height(270.0)
                 .show(ui, |ui| {
                 let mut open_idx = None;
 
@@ -1229,15 +1365,16 @@ impl RetroCardMakerApp {
                         frame.show(ui, |ui| {
                             ui.horizontal(|ui| {
                                 ui.checkbox(&mut p_state.enabled, "");
-                                ui.label(RichText::new(p_icon).size(15.0));
+                                ui.label(RichText::new(p_icon).size(18.0));
 
                                 // Bounded left width to prevent pushing screen width
-                                ui.allocate_ui(Vec2::new(135.0, 26.0), |ui| {
+                                let avail = (ui.available_width() - 150.0).max(110.0);
+                                ui.allocate_ui(Vec2::new(avail, 34.0), |ui| {
                                     ui.vertical(|ui| {
-                                        ui.add(egui::Label::new(RichText::new(plat_name).size(11.0).strong().color(if is_found { Color32::WHITE } else { Color32::from_gray(130) })).truncate());
+                                        ui.add(egui::Label::new(RichText::new(plat_name).size(13.5).strong().color(if is_found { Color32::WHITE } else { Color32::from_gray(130) })).truncate());
                                         ui.label(
                                             RichText::new(format!("{} ROMs", rom_count))
-                                                .size(9.5)
+                                                .size(11.5)
                                                 .color(if rom_count > 0 { Color32::from_rgb(0, 229, 255) } else { Color32::from_gray(120) }),
                                         );
                                     });
@@ -1283,15 +1420,15 @@ impl RetroCardMakerApp {
 
             // Subheader: Search box + Boxart Sync toggle
             ui.horizontal(|ui| {
-                ui.label(RichText::new("🔍").size(12.0));
+                ui.label(RichText::new("🔍").size(13.0));
                 ui.text_edit_singleline(&mut self.rom_search_query);
 
                 let avail = (ui.available_width() - 8.0).max(10.0);
-                ui.allocate_ui(Vec2::new(avail, 20.0), |ui| {
+                ui.allocate_ui(Vec2::new(avail, 24.0), |ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         badge_green(ui, "Libretro CDN");
                         toggle_switch(ui, &mut self.download_art);
-                        ui.label(RichText::new("Sync Boxart").size(10.5).color(Color32::from_gray(200)));
+                        ui.label(RichText::new("Sync Boxart").size(12.0).color(Color32::from_gray(200)));
                     });
                 });
             });
@@ -1301,7 +1438,7 @@ impl RetroCardMakerApp {
             // Games Table
             ScrollArea::vertical()
                 .id_salt("card4_roms_scroll")
-                .max_height(210.0)
+                .max_height(230.0)
                 .show(ui, |ui| {
                 if let Some(ref p_state) = active_plat {
                     let search_lower = self.rom_search_query.to_lowercase();
@@ -1329,17 +1466,17 @@ impl RetroCardMakerApp {
                                         .fill(Color32::from_rgb(16, 22, 32))
                                         .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
                                         .corner_radius(4)
-                                        .inner_margin(Margin::same(3))
+                                        .inner_margin(Margin::same(4))
                                         .show(ui, |ui| {
-                                            ui.label(RichText::new(get_game_icon(rom)).size(13.0));
+                                            ui.label(RichText::new(get_game_icon(rom)).size(16.0));
                                         });
 
                                     // Bounded text width using truncate to prevent layout blowout
-                                    let avail = (ui.available_width() - 95.0).max(60.0);
-                                    ui.allocate_ui(Vec2::new(avail, 26.0), |ui| {
+                                    let avail = (ui.available_width() - 110.0).max(60.0);
+                                    ui.allocate_ui(Vec2::new(avail, 34.0), |ui| {
                                         ui.vertical(|ui| {
-                                            ui.add(egui::Label::new(RichText::new(rom).size(10.5).strong().color(Color32::WHITE)).truncate());
-                                            ui.label(RichText::new(format!("System: {}", p_state.platform.name)).size(9.0).color(Color32::from_gray(140)));
+                                            ui.add(egui::Label::new(RichText::new(rom).size(13.0).strong().color(Color32::WHITE)).truncate());
+                                            ui.label(RichText::new(format!("System: {}", p_state.platform.name)).size(11.5).color(Color32::from_gray(140)));
                                         });
                                     });
 
@@ -1357,10 +1494,10 @@ impl RetroCardMakerApp {
                     }
 
                     if shown == 0 {
-                        ui.label(RichText::new("No ROMs match the filter or folder empty.").size(10.5).color(Color32::GRAY));
+                        ui.label(RichText::new("No ROMs match the filter or folder empty.").size(12.0).color(Color32::GRAY));
                     }
                 } else {
-                    ui.label(RichText::new("No platform selected.").size(10.5).color(Color32::GRAY));
+                    ui.label(RichText::new("No platform selected.").size(12.0).color(Color32::GRAY));
                 }
             });
         });
@@ -1409,46 +1546,52 @@ impl RetroCardMakerApp {
             } else {
                 &self.current_item
             };
-            ui.label(RichText::new(item_label).size(10.0).color(Color32::from_gray(150)));
+            ui.label(RichText::new(item_label).size(12.0).color(Color32::from_gray(160)));
 
             ui.add_space(8.0);
 
             // Giant QuickInstall Button
             if !self.is_running {
+                let has_admin = is_elevated();
                 let can_start = !self.drives.is_empty()
-                    && (!self.do_format || self.format_confirmed)
+                    && (!self.do_format || (self.format_confirmed && has_admin))
                     && self.platform_states.iter().any(|p| p.enabled && p.found_dir.is_some());
 
                 let target_letter = self.drives.get(self.selected_drive_idx).map(|d| d.letter.as_str()).unwrap_or("E:");
 
                 let start_btn = egui::Button::new(
                     RichText::new(format!("🚀 START QUICKINSTALL ({})", target_letter))
-                        .size(13.0)
+                        .size(15.0)
                         .strong()
                         .color(Color32::BLACK),
                 )
                 .fill(Color32::from_rgb(16, 185, 129))
                 .corner_radius(8);
 
-                if ui.add_sized([ui.available_width(), 36.0], start_btn).clicked() && can_start {
+                if ui.add_sized([ui.available_width(), 42.0], start_btn).clicked() && can_start {
                     self.start_install();
                 }
 
                 if !can_start {
-                    ui.add_space(2.0);
-                    ui.label(RichText::new("Confirm erase or verify removable drive to launch.").size(9.5).color(Color32::from_rgb(255, 180, 100)));
+                    ui.add_space(3.0);
+                    let warning_str = if self.do_format && !has_admin {
+                        "Administrator privileges required to format. Click 'Relaunch as Admin' in Card 1."
+                    } else {
+                        "Confirm erase or verify removable drive to launch."
+                    };
+                    ui.label(RichText::new(warning_str).size(11.5).color(Color32::from_rgb(255, 180, 100)));
                 }
             } else {
                 let cancel_btn = egui::Button::new(
                     RichText::new("🛑 CANCEL QUICKINSTALL")
-                        .size(13.0)
+                        .size(14.5)
                         .strong()
                         .color(Color32::WHITE),
                 )
                 .fill(Color32::from_rgb(239, 68, 68))
                 .corner_radius(8);
 
-                if ui.add_sized([ui.available_width(), 36.0], cancel_btn).clicked() {
+                if ui.add_sized([ui.available_width(), 42.0], cancel_btn).clicked() {
                     self.cancel_flag.store(true, Ordering::Relaxed);
                     self.logs.push("[CANCEL] Cancellation requested by user.".to_string());
                 }
@@ -1466,20 +1609,24 @@ impl RetroCardMakerApp {
             .corner_radius(8)
             .inner_margin(Margin::same(0))
             .show(ui, |ui| {
-                // Header with macOS/Linux colored dots
+                // Header with crisp vector painted macOS control dots
                 egui::Frame::new()
                     .fill(Color32::from_rgb(12, 17, 26))
                     .corner_radius(8)
-                    .inner_margin(Margin::symmetric(10, 6))
+                    .inner_margin(Margin::symmetric(10, 7))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new("🔴").size(8.0));
-                            ui.label(RichText::new("🟡").size(8.0));
-                            ui.label(RichText::new("🟢").size(8.0));
-                            ui.add_space(4.0);
-                            ui.label(RichText::new("terminal.log").monospace().size(10.5).color(Color32::from_gray(180)));
+                            let (dots_rect, _) = ui.allocate_exact_size(Vec2::new(40.0, 14.0), egui::Sense::hover());
+                            let painter = ui.painter_at(dots_rect);
+                            let y = dots_rect.center().y;
+                            painter.circle_filled(egui::pos2(dots_rect.min.x + 6.0, y), 4.5, Color32::from_rgb(255, 95, 86));
+                            painter.circle_filled(egui::pos2(dots_rect.min.x + 19.0, y), 4.5, Color32::from_rgb(255, 189, 46));
+                            painter.circle_filled(egui::pos2(dots_rect.min.x + 32.0, y), 4.5, Color32::from_rgb(39, 201, 63));
+
+                            ui.add_space(2.0);
+                            ui.label(RichText::new("terminal.log").monospace().size(12.5).color(Color32::from_gray(190)));
                             let avail = (ui.available_width() - 8.0).max(10.0);
-                            ui.allocate_ui(Vec2::new(avail, 16.0), |ui| {
+                            ui.allocate_ui(Vec2::new(avail, 20.0), |ui| {
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     badge_cyan(ui, "Execution Stream");
                                 });
@@ -1507,7 +1654,7 @@ impl RetroCardMakerApp {
                                     } else {
                                         Color32::from_rgb(180, 205, 235)
                                     };
-                                    ui.label(RichText::new(line).monospace().size(9.5).color(color));
+                                    ui.label(RichText::new(line).monospace().size(11.5).color(color));
                                 }
                             });
                     });
@@ -1559,13 +1706,13 @@ impl RetroCardMakerApp {
                             p_state.platform.id.to_uppercase(),
                             rom_count
                         ))
-                        .size(13.0)
+                        .size(16.0)
                         .strong()
                         .color(Color32::WHITE),
                     );
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let x_btn = egui::Button::new(RichText::new("×").size(14.0).strong().color(Color32::from_gray(200)))
+                        let x_btn = egui::Button::new(RichText::new("✕").size(15.0).strong().color(Color32::from_gray(200)))
                             .fill(Color32::from_rgb(28, 36, 48))
                             .stroke(Stroke::new(1.0, Color32::from_rgb(45, 58, 78)))
                             .corner_radius(6);
@@ -1583,7 +1730,7 @@ impl RetroCardMakerApp {
                 ui.horizontal(|ui| {
                     let top_btn = egui::Button::new(
                         RichText::new("⭐ Select Recommended Top Classics")
-                            .size(10.5)
+                            .size(12.0)
                             .strong()
                             .color(Color32::from_rgb(255, 230, 100)),
                     )
@@ -1598,7 +1745,7 @@ impl RetroCardMakerApp {
                         }
                     }
 
-                    let all_btn = egui::Button::new(RichText::new("Select All").size(10.0).strong())
+                    let all_btn = egui::Button::new(RichText::new("Select All").size(11.5).strong())
                         .fill(Color32::from_rgb(18, 25, 36))
                         .stroke(Stroke::new(1.0, Color32::from_rgb(32, 44, 62)))
                         .corner_radius(4);
@@ -1608,7 +1755,7 @@ impl RetroCardMakerApp {
                         }
                     }
 
-                    let clear_btn = egui::Button::new(RichText::new("Clear").size(10.0).strong())
+                    let clear_btn = egui::Button::new(RichText::new("Clear").size(11.5).strong())
                         .fill(Color32::from_rgb(18, 25, 36))
                         .stroke(Stroke::new(1.0, Color32::from_rgb(32, 44, 62)))
                         .corner_radius(4);
@@ -1617,8 +1764,8 @@ impl RetroCardMakerApp {
                     }
 
                     ui.add_space(8.0);
-                    ui.label(RichText::new("🔍").size(11.0));
-                    ui.add(egui::TextEdit::singleline(&mut self.editing_search_query).desired_width(120.0));
+                    ui.label(RichText::new("🔍").size(12.5));
+                    ui.add(egui::TextEdit::singleline(&mut self.editing_search_query).desired_width(130.0));
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         badge_purple(ui, &format!("{} of {} Curated", self.editing_selected_games.len(), rom_count));
@@ -1653,13 +1800,13 @@ impl RetroCardMakerApp {
                                         .fill(Color32::from_rgb(14, 28, 42))
                                         .stroke(Stroke::new(1.0, Color32::from_rgb(0, 229, 255)))
                                         .corner_radius(6)
-                                        .inner_margin(Margin::symmetric(6, 4))
+                                        .inner_margin(Margin::symmetric(6, 5))
                                 } else {
                                     egui::Frame::new()
                                         .fill(Color32::from_rgb(10, 14, 20))
                                         .stroke(Stroke::new(1.0, Color32::from_rgb(22, 30, 42)))
                                         .corner_radius(6)
-                                        .inner_margin(Margin::symmetric(6, 4))
+                                        .inner_margin(Margin::symmetric(6, 5))
                                 };
 
                                 let inner = ui.push_id(format!("m_rom_{}", rom), |ui| {
@@ -1674,15 +1821,15 @@ impl RetroCardMakerApp {
                                                 }
                                             }
 
-                                            ui.label(RichText::new(icon).size(13.0));
+                                            ui.label(RichText::new(icon).size(15.0));
 
-                                            let title_w = if is_top { 220.0 } else { 310.0 };
+                                            let title_w = if is_top { 200.0 } else { 290.0 };
                                             ui.add_sized(
-                                                [title_w, 18.0],
+                                                [title_w, 20.0],
                                                 egui::Label::new(
                                                     RichText::new(rom)
-                                                        .size(10.5)
-                                                        .color(if is_checked { Color32::WHITE } else { Color32::from_gray(170) }),
+                                                        .size(12.5)
+                                                        .color(if is_checked { Color32::WHITE } else { Color32::from_gray(180) }),
                                                 )
                                                 .truncate(),
                                             );
@@ -1702,15 +1849,15 @@ impl RetroCardMakerApp {
                             }
 
                             if shown == 0 {
-                                ui.label(RichText::new("No games found.").size(10.5).color(Color32::GRAY));
+                                ui.label(RichText::new("No games found.").size(12.0).color(Color32::GRAY));
                             }
                         });
 
                     // Right Column: Live Libretro Preview Card & Pattern Rules
                     let right_ui = &mut cols[1];
                     right_ui.vertical(|ui| {
-                        ui.label(RichText::new("Live preview").size(11.0).strong().color(Color32::WHITE));
-                        ui.add_space(2.0);
+                        ui.label(RichText::new("Live preview").size(13.5).strong().color(Color32::WHITE));
+                        ui.add_space(3.0);
 
                         // Artwork Preview Card
                         egui::Frame::new()
@@ -1734,38 +1881,38 @@ impl RetroCardMakerApp {
                                             ui.vertical_centered(|ui| {
                                                 ui.label(
                                                     RichText::new("LIBRETRO")
-                                                        .size(8.5)
+                                                        .size(10.0)
                                                         .strong()
                                                         .color(Color32::from_rgb(0, 229, 255)),
                                                 );
-                                                ui.label(RichText::new("🖼️").size(24.0));
-                                                ui.label(RichText::new("COVER").size(7.5).color(Color32::from_gray(160)));
+                                                ui.label(RichText::new("🖼️").size(32.0));
+                                                ui.label(RichText::new("COVER").size(9.0).color(Color32::from_gray(170)));
                                             });
                                         });
 
                                     let avail_meta = (ui.available_width() - 8.0).max(180.0);
                                     ui.allocate_ui_with_layout(
-                                        Vec2::new(avail_meta, 76.0),
+                                        Vec2::new(avail_meta, 82.0),
                                         egui::Layout::top_down(egui::Align::Min),
                                         |ui| {
                                             ui.set_width(avail_meta);
                                             ui.add_sized(
-                                                [avail_meta - 10.0, 18.0],
+                                                [avail_meta - 10.0, 22.0],
                                                 egui::Label::new(
-                                                    RichText::new(&preview_title).size(12.0).strong().color(Color32::WHITE),
+                                                    RichText::new(&preview_title).size(14.0).strong().color(Color32::WHITE),
                                                 )
                                                 .truncate(),
                                             );
                                             ui.add_space(2.0);
                                             ui.label(
                                                 RichText::new(format!("Platform: {}", p_state.platform.name))
-                                                    .size(9.5)
-                                                    .color(Color32::from_gray(150)),
+                                                    .size(12.0)
+                                                    .color(Color32::from_gray(170)),
                                             );
-                                            ui.label(RichText::new("Publisher: Verified Dump").size(9.0).color(Color32::from_gray(140)));
+                                            ui.label(RichText::new("Publisher: Verified Dump").size(11.5).color(Color32::from_gray(150)));
                                             ui.label(
                                                 RichText::new("CDN: Libretro Thumbnails")
-                                                    .size(9.0)
+                                                    .size(11.5)
                                                     .color(Color32::from_rgb(16, 185, 129)),
                                             );
                                         },
@@ -1784,14 +1931,14 @@ impl RetroCardMakerApp {
                             .show(ui, |ui| {
                                 ui.label(
                                     RichText::new("Keyword Pattern Rules:")
-                                        .size(10.5)
+                                        .size(12.5)
                                         .strong()
                                         .color(Color32::from_rgb(0, 229, 255)),
                                 );
                                 ui.add_space(4.0);
                                 ui.horizontal(|ui| {
                                     ui.add(egui::TextEdit::singleline(&mut self.new_favorite_pattern).desired_width(180.0));
-                                    let add_btn = egui::Button::new(RichText::new("+ Add").size(10.5).strong())
+                                    let add_btn = egui::Button::new(RichText::new("+ Add").size(11.5).strong())
                                         .fill(Color32::from_rgb(20, 36, 54))
                                         .stroke(Stroke::new(1.0, Color32::from_rgb(0, 180, 210)))
                                         .corner_radius(4);
@@ -1847,43 +1994,43 @@ impl RetroCardMakerApp {
                     ui.add(
                         egui::Label::new(
                             RichText::new(format!("Destination: {}\\{}", target_folder, "favorites.json"))
-                                .size(9.5)
-                                .color(Color32::from_gray(140)),
+                                .size(11.5)
+                                .color(Color32::from_gray(150)),
                         )
                         .truncate(),
                     );
 
                     let avail = ui.available_width();
-                    let needed = 75.0 + 10.0 + 180.0 + 10.0 + 120.0;
+                    let needed = 85.0 + 10.0 + 190.0 + 10.0 + 90.0;
                     if avail > needed {
                         ui.add_space(avail - needed - 8.0);
                     }
 
-                    ui.label(RichText::new("Sync Boxart").size(10.5).color(Color32::from_gray(200)));
+                    ui.label(RichText::new("Sync Boxart").size(12.0).color(Color32::from_gray(200)));
                     toggle_switch(ui, &mut self.download_art);
                     ui.add_space(8.0);
 
                     let save_btn = egui::Button::new(
                         RichText::new("💾 Save favorites.json")
-                            .size(11.0)
+                            .size(12.5)
                             .strong()
                             .color(Color32::BLACK),
                     )
                     .fill(Color32::from_rgb(132, 204, 22))
                     .corner_radius(6);
 
-                    if ui.add(save_btn).clicked() {
+                    if ui.add_sized([190.0, 32.0], save_btn).clicked() {
                         do_save = true;
                     }
 
                     ui.add_space(8.0);
 
-                    let close_btn = egui::Button::new(RichText::new("Close").size(11.0).strong())
+                    let close_btn = egui::Button::new(RichText::new("Close").size(12.5).strong())
                         .fill(Color32::from_rgb(20, 28, 40))
                         .stroke(Stroke::new(1.0, Color32::from_rgb(36, 50, 72)))
                         .corner_radius(6);
 
-                    if ui.add(close_btn).clicked() {
+                    if ui.add_sized([80.0, 32.0], close_btn).clicked() {
                         close_modal = true;
                     }
                 });
@@ -1946,7 +2093,7 @@ impl RetroCardMakerApp {
                             let is_cur = self.selected_platform_idx == i;
                             let btn = egui::Button::new(
                                 RichText::new(p.platform.id.to_uppercase())
-                                    .size(9.5)
+                                    .size(11.5)
                                     .strong()
                                     .color(if is_cur { Color32::WHITE } else { Color32::from_gray(160) }),
                             )
@@ -1967,7 +2114,7 @@ impl RetroCardMakerApp {
                 let left_ui = &mut fcols[0];
                 left_ui.vertical(|ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new("🔍").size(12.0));
+                        ui.label(RichText::new("🔍").size(12.5));
                         ui.text_edit_singleline(&mut self.rom_search_query);
 
                         badge_cyan(ui, "Genre: RPG ×");
@@ -2004,20 +2151,20 @@ impl RetroCardMakerApp {
                                         ui.horizontal(|ui| {
                                             let mut checked = is_top;
                                             ui.checkbox(&mut checked, "");
-                                            ui.label(RichText::new(icon).size(14.0));
+                                            ui.label(RichText::new(icon).size(16.0));
 
-                                            let avail = (ui.available_width() - 110.0).max(60.0);
-                                            ui.allocate_ui(Vec2::new(avail, 26.0), |ui| {
+                                            let avail = (ui.available_width() - 120.0).max(60.0);
+                                            ui.allocate_ui(Vec2::new(avail, 34.0), |ui| {
                                                 ui.vertical(|ui| {
-                                                    ui.add(egui::Label::new(RichText::new(rom).size(11.0).strong().color(Color32::WHITE)).truncate());
-                                                    ui.label(RichText::new(format!("System: {}", p_state.platform.name)).size(9.0).color(Color32::from_gray(140)));
+                                                    ui.add(egui::Label::new(RichText::new(rom).size(13.0).strong().color(Color32::WHITE)).truncate());
+                                                    ui.label(RichText::new(format!("System: {}", p_state.platform.name)).size(11.5).color(Color32::from_gray(140)));
                                                 });
                                             });
 
                                             if is_top {
                                                 badge_green(ui, "Top Classic");
                                             }
-                                            ui.label(RichText::new("[48 MB]").size(9.5).color(Color32::from_gray(150)));
+                                            ui.label(RichText::new("[48 MB]").size(11.0).color(Color32::from_gray(150)));
                                         });
                                     });
                                 });
@@ -2031,7 +2178,7 @@ impl RetroCardMakerApp {
                 let right_ui = &mut fcols[1];
                 right_ui.vertical(|ui| {
                     card_frame().show(ui, |ui| {
-                        ui.label(RichText::new("favorites.json Code Preview").size(11.5).strong().color(Color32::WHITE));
+                        ui.label(RichText::new("favorites.json Code Preview").size(13.0).strong().color(Color32::WHITE));
                         ui.add_space(4.0);
 
                         let p_info = &self.platform_states[active_idx].platform;
@@ -2058,12 +2205,12 @@ impl RetroCardMakerApp {
 
             // Bottom Footer with Real Buttons
             ui.horizontal(|ui| {
-                ui.label(RichText::new("18 of 120 selected").size(11.0).strong().color(Color32::from_rgb(0, 229, 255)));
+                ui.label(RichText::new("18 of 120 selected").size(12.0).strong().color(Color32::from_rgb(0, 229, 255)));
 
                 let avail = (ui.available_width() - 8.0).max(10.0);
-                ui.allocate_ui(Vec2::new(avail, 26.0), |ui| {
+                ui.allocate_ui(Vec2::new(avail, 28.0), |ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let ref_btn = egui::Button::new(RichText::new("🔄 Refresh List").size(11.0).strong())
+                        let ref_btn = egui::Button::new(RichText::new("🔄 Refresh List").size(12.0).strong())
                             .fill(Color32::from_rgb(20, 28, 40))
                             .stroke(Stroke::new(1.0, Color32::from_rgb(36, 50, 72)))
                             .corner_radius(6);
@@ -2071,7 +2218,7 @@ impl RetroCardMakerApp {
                             self.scan_source_folder();
                         }
 
-                        let save_btn = egui::Button::new(RichText::new("Save favorites.json").size(11.5).strong().color(Color32::BLACK))
+                        let save_btn = egui::Button::new(RichText::new("Save favorites.json").size(12.5).strong().color(Color32::BLACK))
                             .fill(Color32::from_rgb(16, 185, 129))
                             .corner_radius(6);
                         if ui.add(save_btn).clicked() {
@@ -2094,10 +2241,10 @@ impl RetroCardMakerApp {
 
             // Source Directory Bar
             ui.horizontal(|ui| {
-                ui.label(RichText::new("Source Library Root:").size(11.0).strong().color(Color32::WHITE));
+                ui.label(RichText::new("Source Library Root:").size(12.5).strong().color(Color32::WHITE));
                 ui.text_edit_singleline(&mut self.source_path);
 
-                let browse_btn = egui::Button::new(RichText::new("📂 Browse...").size(11.0).strong())
+                let browse_btn = egui::Button::new(RichText::new("📂 Browse...").size(12.0).strong())
                     .fill(Color32::from_rgb(20, 28, 40))
                     .stroke(Stroke::new(1.0, Color32::from_rgb(36, 50, 72)))
                     .corner_radius(6);
@@ -2108,7 +2255,7 @@ impl RetroCardMakerApp {
                     }
                 }
 
-                let rescan_btn = egui::Button::new(RichText::new("🔄 Rescan").size(11.0).strong())
+                let rescan_btn = egui::Button::new(RichText::new("🔄 Rescan").size(12.0).strong())
                     .fill(Color32::from_rgb(20, 28, 40))
                     .stroke(Stroke::new(1.0, Color32::from_rgb(36, 50, 72)))
                     .corner_radius(6);
@@ -2145,15 +2292,15 @@ impl RetroCardMakerApp {
                                 ui.checkbox(&mut p_state.enabled, "");
                                 ui.vertical(|ui| {
                                     ui.horizontal(|ui| {
-                                        ui.label(RichText::new(plat_name).size(12.0).strong().color(Color32::WHITE));
+                                        ui.label(RichText::new(plat_name).size(13.5).strong().color(Color32::WHITE));
                                         badge_cyan(ui, &plat_id_upper);
                                     });
 
-                                    ui.label(RichText::new(path_str).size(10.0).color(if is_found { Color32::from_gray(160) } else { Color32::from_gray(110) }));
+                                    ui.label(RichText::new(path_str).size(11.5).color(if is_found { Color32::from_gray(160) } else { Color32::from_gray(110) }));
                                 });
 
                                 let avail = (ui.available_width() - 8.0).max(10.0);
-                                ui.allocate_ui(Vec2::new(avail, 26.0), |ui| {
+                                ui.allocate_ui(Vec2::new(avail, 28.0), |ui| {
                                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                         badge_green(ui, &format!("{} ROMs", rom_count));
                                         if curated_favorites_button(ui) {
@@ -2184,21 +2331,21 @@ impl RetroCardMakerApp {
 
             ui.columns(2, |cols| {
                 cols[0].vertical(|ui| {
-                    ui.label(RichText::new("Storage Safety Safeguards").size(12.0).strong().color(Color32::WHITE));
+                    ui.label(RichText::new("Storage Safety Safeguards").size(13.5).strong().color(Color32::WHITE));
                     ui.add_space(4.0);
-                    ui.label(RichText::new("• Formatting is strictly restricted to removable USB and SD cards.\n• System drive C: and internal fixed SSDs (NVMe) are hardware locked.\n• Diskpart clean wipe restores 100% capacity from trapped Linux/ext4 partitions.").size(10.0).color(Color32::from_gray(160)));
+                    ui.label(RichText::new("• Formatting is strictly restricted to removable USB and SD cards.\n• System drive C: and internal fixed SSDs (NVMe) are hardware locked.\n• Diskpart clean wipe restores 100% capacity from trapped Linux/ext4 partitions.").size(12.0).color(Color32::from_gray(160)));
                 });
 
                 cols[1].vertical(|ui| {
-                    ui.label(RichText::new("Libretro Artwork CDN Engine").size(12.0).strong().color(Color32::WHITE));
+                    ui.label(RichText::new("Libretro Artwork CDN Engine").size(13.5).strong().color(Color32::WHITE));
                     ui.add_space(4.0);
-                    ui.label(RichText::new("• Base URL: https://raw.githubusercontent.com/libretro-thumbnails/libretro-thumbnails/master/\n• Automatic name sanitization (&, :, /, \\ converted to _).\n• Zero API key requirement with high-speed parallel asset syncing.").size(10.0).color(Color32::from_gray(160)));
+                    ui.label(RichText::new("• Base URL: https://raw.githubusercontent.com/libretro-thumbnails/libretro-thumbnails/master/\n• Automatic name sanitization (&, :, /, \\ converted to _).\n• Zero API key requirement with high-speed parallel asset syncing.").size(12.0).color(Color32::from_gray(160)));
                 });
             });
 
             ui.add_space(16.0);
             ui.separator();
-            ui.label(RichText::new(format!("Retro CardMaker v{} • Native Windows x64 Build • Pair programming Antigravity", env!("CARGO_PKG_VERSION"))).size(10.0).color(Color32::from_gray(140)));
+            ui.label(RichText::new(format!("Retro CardMaker v{} • Native Windows x64 Build • Pair programming Antigravity", env!("CARGO_PKG_VERSION"))).size(11.5).color(Color32::from_gray(140)));
         });
     }
 }

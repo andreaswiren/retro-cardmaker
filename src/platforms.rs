@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlatformInfo {
     pub id: &'static str,
@@ -328,7 +330,7 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         name: "Sega Saturn",
         manufacturer: "Sega",
         libretro_name: "Sega_-_Saturn",
-        extensions: &[".chd", ".iso", ".cue", ".bin", ".zip"],
+        extensions: &[".chd", ".iso", ".cue", ".bin", ".zip", ".m3u"],
         folder_aliases: &[
             "saturn",
             "ss",
@@ -357,7 +359,7 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         name: "Sega Dreamcast",
         manufacturer: "Sega",
         libretro_name: "Sega_-_Dreamcast",
-        extensions: &[".chd", ".gdi", ".cdi", ".iso", ".zip"],
+        extensions: &[".chd", ".gdi", ".cdi", ".iso", ".zip", ".m3u"],
         folder_aliases: &[
             "dreamcast",
             "dc",
@@ -386,7 +388,7 @@ pub static PLATFORMS: &[PlatformInfo] = &[
         name: "Sony PlayStation (PS1 / PSX)",
         manufacturer: "Sony",
         libretro_name: "Sony_-_PlayStation",
-        extensions: &[".chd", ".cue", ".bin", ".iso", ".pbp", ".zip"],
+        extensions: &[".chd", ".cue", ".bin", ".iso", ".pbp", ".zip", ".m3u"],
         folder_aliases: &[
             "psx",
             "ps1",
@@ -550,4 +552,195 @@ pub fn find_platform_by_dir_name(dir_name: &str) -> Option<&'static PlatformInfo
         }
     }
     None
+}
+
+/// Checks if a platform commonly uses CD-ROM disc images with multiple files and audio tracks
+pub fn is_cd_platform(platform_id: &str) -> bool {
+    matches!(
+        platform_id,
+        "psx" | "saturn" | "dreamcast" | "segacd" | "pcecd" | "3do" | "neogeocd"
+    )
+}
+
+/// Determines whether a filename corresponds to a secondary data track or CD audio track
+pub fn is_track_or_companion_file(filename: &str) -> bool {
+    let lower = filename.to_lowercase();
+
+    // Dedicated CD audio and subchannel track extensions
+    if lower.ends_with(".wav")
+        || lower.ends_with(".mp3")
+        || lower.ends_with(".ogg")
+        || lower.ends_with(".flac")
+        || lower.ends_with(".ape")
+        || lower.ends_with(".sub")
+        || lower.ends_with(".raw")
+    {
+        return true;
+    }
+
+    // Typical CD track naming patterns: "(Track 1).bin", "Track 02.bin", "track01.bin", etc.
+    if lower.ends_with(".bin") || lower.ends_with(".img") || lower.ends_with(".iso") {
+        if lower.contains("track ")
+            || lower.contains("track_")
+            || lower.contains("(track")
+            || lower.contains("[track")
+            || lower.contains("track0")
+            || lower.contains("track1")
+            || lower.contains("track2")
+            || lower.contains("track3")
+            || lower.contains("track4")
+            || lower.contains("track5")
+            || lower.contains("track6")
+            || lower.contains("track7")
+            || lower.contains("track8")
+            || lower.contains("track9")
+        {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Filters a list of ROM filenames to return only primary game launch entries,
+/// suppressing individual audio tracks and secondary binary data tracks for CD platforms.
+pub fn filter_primary_rom_files(platform_id: &str, files: &[String]) -> Vec<String> {
+    if !is_cd_platform(platform_id) {
+        return files.to_vec();
+    }
+
+    // Collect base stems of all descriptor files (.cue, .m3u, .gdi, .ccd, .chd, .pbp)
+    let mut descriptor_stems = std::collections::HashSet::new();
+    for f in files {
+        let lower = f.to_lowercase();
+        if lower.ends_with(".cue")
+            || lower.ends_with(".m3u")
+            || lower.ends_with(".gdi")
+            || lower.ends_with(".ccd")
+            || lower.ends_with(".chd")
+            || lower.ends_with(".pbp")
+        {
+            if let Some(stem) = Path::new(f).file_stem().and_then(|s| s.to_str()) {
+                descriptor_stems.insert(stem.to_lowercase());
+            }
+        }
+    }
+
+    let mut result = Vec::new();
+    for f in files {
+        let lower = f.to_lowercase();
+
+        // Secondary audio tracks (.wav, .flac, .mp3, .ape) are never primary launch entries
+        if is_track_or_companion_file(f) {
+            continue;
+        }
+
+        // If a matching descriptor file (.cue, .m3u) exists for this game, hide the .bin/.img
+        if lower.ends_with(".bin") || lower.ends_with(".img") {
+            if let Some(stem) = Path::new(f).file_stem().and_then(|s| s.to_str()) {
+                let stem_lower = stem.to_lowercase();
+                if descriptor_stems.contains(&stem_lower)
+                    || descriptor_stems.iter().any(|d| stem_lower.starts_with(d))
+                {
+                    continue;
+                }
+            }
+        }
+
+        result.push(f.clone());
+    }
+
+    result
+}
+
+/// Resolves all companion files (data tracks, CD audio tracks .wav/.mp3/.flac/.bin, subchannel files)
+/// that belong to a primary ROM (such as a .cue, .m3u, or .gdi).
+pub fn get_companion_files(primary_path: &Path) -> Vec<PathBuf> {
+    let mut companions = Vec::new();
+    let parent = match primary_path.parent() {
+        Some(p) => p,
+        None => return companions,
+    };
+
+    let ext = primary_path
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // 1. If .cue sheet, parse FILE declarations
+    if ext == "cue" {
+        if let Ok(content) = std::fs::read_to_string(primary_path) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.to_uppercase().starts_with("FILE ") {
+                    // Quoted filename: FILE "Crash Bandicoot (Track 1).bin" BINARY
+                    if let Some(first_quote) = trimmed.find('"') {
+                        if let Some(second_quote) = trimmed[first_quote + 1..].find('"') {
+                            let track_file = &trimmed[first_quote + 1..first_quote + 1 + second_quote];
+                            let track_path = parent.join(track_file);
+                            if track_path.exists() && track_path != primary_path {
+                                companions.push(track_path);
+                            }
+                        }
+                    } else {
+                        // Unquoted filename: FILE track1.bin BINARY
+                        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                        if parts.len() >= 2 {
+                            let track_path = parent.join(parts[1]);
+                            if track_path.exists() && track_path != primary_path {
+                                companions.push(track_path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if ext == "m3u" {
+        // 2. If .m3u playlist, read referenced disc files and their companion tracks
+        if let Ok(content) = std::fs::read_to_string(primary_path) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') {
+                    continue;
+                }
+                let disc_path = parent.join(trimmed);
+                if disc_path.exists() {
+                    if disc_path != primary_path {
+                        companions.push(disc_path.clone());
+                    }
+                    for sub_comp in get_companion_files(&disc_path) {
+                        companions.push(sub_comp);
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Sibling scan fallback: find any track or audio file matching the primary stem prefix
+    if let Some(stem) = primary_path.file_stem().and_then(|s| s.to_str()) {
+        let stem_lower = stem.to_lowercase();
+        if let Ok(entries) = std::fs::read_dir(parent) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let p = entry.path();
+                if p == primary_path {
+                    continue;
+                }
+                if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
+                    let name_lower = name.to_lowercase();
+                    if (name_lower.starts_with(&stem_lower) || stem_lower.starts_with(&name_lower))
+                        && is_track_or_companion_file(name)
+                    {
+                        if !companions.contains(&p) {
+                            companions.push(p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    companions.sort();
+    companions.dedup();
+    companions
 }

@@ -9,7 +9,7 @@ use crate::art_scraper::ArtScraper;
 use crate::drives::{format_drive, wipe_and_repartition_drive, FormatFileSystem};
 use crate::favorites::{load_favorites, FavoritesList};
 use crate::launcher_profiles::{LauncherProfile, ProfileId};
-use crate::platforms::{find_platform_by_id, PlatformInfo};
+use crate::platforms::{find_platform_by_id, filter_primary_rom_files, get_companion_files, PlatformInfo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CopyMode {
@@ -162,7 +162,7 @@ impl InstallerEngine {
                 None
             };
 
-            let mut platform_found = 0;
+            let mut found_files = Vec::new();
             for entry in WalkDir::new(&p_cfg.source_dir)
                 .max_depth(2)
                 .into_iter()
@@ -185,20 +185,34 @@ impl InstallerEngine {
                         continue;
                     }
 
-                    // Check favorites filter if in FavoritesOnly mode
-                    if let Some(ref favs) = effective_favorites {
-                        if !favs.is_match(&filename) {
-                            continue;
-                        }
-                    }
-
-                    tasks.push((platform.clone(), path.to_path_buf(), filename));
-                    platform_found += 1;
+                    found_files.push((path.to_path_buf(), filename));
                 }
             }
 
+            // Filter for primary game entries (so audio and secondary binary tracks are not queued as separate items)
+            let raw_filenames: Vec<String> = found_files.iter().map(|(_, name)| name.clone()).collect();
+            let primary_filenames = filter_primary_rom_files(platform.id, &raw_filenames);
+            let primary_set: std::collections::HashSet<_> = primary_filenames.into_iter().collect();
+
+            let mut platform_found = 0;
+            for (path, filename) in found_files {
+                if !primary_set.contains(&filename) {
+                    continue;
+                }
+
+                // Check favorites filter if in FavoritesOnly mode
+                if let Some(ref favs) = effective_favorites {
+                    if !favs.is_match(&filename) {
+                        continue;
+                    }
+                }
+
+                tasks.push((platform.clone(), path, filename));
+                platform_found += 1;
+            }
+
             let _ = tx.send(InstallerEvent::Log(format!(
-                "Platform [{}]: queued {} files (Mode: {:?})",
+                "Platform [{}]: queued {} primary games (Mode: {:?})",
                 platform.name, platform_found, p_cfg.mode
             )));
         }
@@ -262,6 +276,51 @@ impl InstallerEngine {
                 }
             } else {
                 summary.total_roms_copied += 1;
+            }
+
+            // Also copy all companion tracks (audio tracks, bin files, subchannel files)
+            let companions = get_companion_files(src_path);
+            for comp_path in &companions {
+                if let Some(comp_filename) = comp_path.file_name().and_then(|s| s.to_str()) {
+                    let dest_comp_path = profile.get_rom_destination(
+                        &config.destination_path,
+                        platform,
+                        comp_filename,
+                    );
+                    if let Some(parent) = dest_comp_path.parent() {
+                        if !parent.exists() {
+                            let _ = fs::create_dir_all(parent);
+                        }
+                    }
+                    let mut need_comp_copy = true;
+                    if dest_comp_path.exists() {
+                        if let (Ok(s_m), Ok(d_m)) = (comp_path.metadata(), dest_comp_path.metadata()) {
+                            if s_m.len() == d_m.len() {
+                                need_comp_copy = false;
+                            }
+                        }
+                    }
+                    if need_comp_copy {
+                        match fs::copy(comp_path, &dest_comp_path) {
+                            Ok(bytes) => {
+                                summary.total_bytes_copied += bytes;
+                            }
+                            Err(e) => {
+                                let err_msg = format!("Failed to copy companion file {}: {}", comp_filename, e);
+                                let _ = tx.send(InstallerEvent::Log(err_msg.clone()));
+                                summary.errors.push(err_msg);
+                            }
+                        }
+                    }
+                }
+            }
+            if !companions.is_empty() {
+                let _ = tx.send(InstallerEvent::Log(format!(
+                    "[{}] Transferred '{}' + {} companion audio/data track(s)",
+                    platform.id.to_uppercase(),
+                    filename,
+                    companions.len()
+                )));
             }
 
             // Artwork processing
